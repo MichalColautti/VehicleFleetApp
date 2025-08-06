@@ -11,6 +11,7 @@ const RootLayout = () => {
         fontWeight: 'bold',
         fontSize: 24,
       },
+      headerTitleAlign: 'center',
       contentStyle: {
         paddingHorizontal: 10,
         paddingTop: 10,
