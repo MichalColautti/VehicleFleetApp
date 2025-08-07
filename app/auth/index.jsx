@@ -38,7 +38,7 @@ const AuthScreen = () => {
             return;
         }
 
-        router.replace('/');
+        router.replace('/(tabs)/dashboard');
     }
 
     return (

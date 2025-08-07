@@ -16,14 +16,13 @@ const RootLayout = () => {
           },
           headerTitleAlign: 'center',
           contentStyle: {
-            paddingHorizontal: 10,
-            paddingTop: 10,
             backgroundColor: '#ffffff',
           }
         }}
       >;
         <Stack.Screen name="index" options={{ title: 'Home' }} />
         <Stack.Screen name='auth' options={{ headerTitle: 'Login'}}/>
+        <Stack.Screen name='(tabs)' options={{ headerShown: false}}/>
       </Stack>
     </AuthProvider>
   )
