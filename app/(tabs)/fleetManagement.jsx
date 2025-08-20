@@ -15,7 +15,7 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    View
+    View,
 } from "react-native";
 
 const FleetManagementScreen = () => {
@@ -43,9 +43,8 @@ const FleetManagementScreen = () => {
     } catch (error) {
       Alert.alert("Error", error.message);
       return [];
-    } 
-    finally {
-        setLoading(false);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -56,8 +55,8 @@ const FleetManagementScreen = () => {
     }
 
     if (fleets.find((f) => f.name === fleetName)) {
-        Alert.alert("Error", "Fleet with that name already exists")
-        return;
+      Alert.alert("Error", "Fleet with that name already exists");
+      return;
     }
 
     try {
@@ -83,7 +82,11 @@ const FleetManagementScreen = () => {
     }
 
     try {
-      await inviteUserToFleet(selectedFleet.id, inviteInput.email, inviteInput.name);
+      await inviteUserToFleet(
+        selectedFleet.id,
+        inviteInput.email,
+        inviteInput.name
+      );
       Alert.alert("Success", "User invited successfully");
       setInviteInput({ email: "", name: "" });
 
@@ -118,40 +121,40 @@ const FleetManagementScreen = () => {
       <Text style={styles.title}>Your Fleets</Text>
 
       {loading ? (
-          <ActivityIndicator size="large" color="#007bff" style={styles.loader} />
+        <ActivityIndicator size="large" color="#007bff" style={styles.loader} />
       ) : (
-          <FlatList
-            data={fleets}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <FleetItem handleOpenFleet={handleOpenFleet} item={item}/>
-            )}
-          />  
-    )}
+        <FlatList
+          data={fleets}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <FleetItem handleOpenFleet={handleOpenFleet} item={item} />
+          )}
+        />
+      )}
 
-    <FleetDetailsModal
+      <FleetDetailsModal
         modalVisible={modalVisible}
         setModalVisible={setModalVisible}
         selectedFleet={selectedFleet}
         inviteInput={inviteInput}
         setInviteInput={setInviteInput}
         handleInvite={handleInvite}
-    />
+      />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
+  container: {
+    flex: 1,
     padding: 20,
   },
-  title: { 
-    fontSize: 22, 
-    fontWeight: "bold", 
+  title: {
+    fontSize: 22,
+    fontWeight: "bold",
     marginBottom: 10,
     marginTop: 10,
-    textAlign: 'center',
+    textAlign: "center",
   },
   input: {
     borderWidth: 1,
@@ -165,17 +168,17 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   createFleetButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
-    backgroundColor: '#007bff',
-    borderColor: '#000000',
+    backgroundColor: "#007bff",
+    borderColor: "#000000",
     padding: 10,
     borderRadius: 8,
   },
   createFleetButtonText: {
     fontSize: 16,
-    color: '#ffffff',
+    color: "#ffffff",
   },
 });
 

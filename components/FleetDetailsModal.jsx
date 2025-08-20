@@ -1,13 +1,27 @@
 import { useState } from "react";
-import { Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import {
+    Modal,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from "react-native";
 
-const FleetDetailsModal = ({ modalVisible, setModalVisible, selectedFleet, inviteInput, setInviteInput, handleInvite }) => {
+const FleetDetailsModal = ({
+  modalVisible,
+  setModalVisible,
+  selectedFleet,
+  inviteInput,
+  setInviteInput,
+  handleInvite,
+}) => {
   const [error, setError] = useState("");
 
   const validateEmail = (email) => {
     const reg = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
     return reg.test(email);
-  }
+  };
 
   const onInvitePress = () => {
     if (!validateEmail(inviteInput.email)) {
@@ -17,21 +31,19 @@ const FleetDetailsModal = ({ modalVisible, setModalVisible, selectedFleet, invit
 
     setError("");
     handleInvite();
-  }
+  };
 
   return (
     <View>
-      <Modal 
-        visible={modalVisible} 
+      <Modal
+        visible={modalVisible}
         animationType="slide"
         transparent
         onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              {selectedFleet?.name} 
-            </Text>
+            <Text style={styles.modalTitle}>{selectedFleet?.name}</Text>
 
             <Text style={styles.modalSubtitle}>Members:</Text>
             {selectedFleet?.members.map((member) => (
@@ -42,65 +54,70 @@ const FleetDetailsModal = ({ modalVisible, setModalVisible, selectedFleet, invit
 
             <Text style={styles.modalSubtitle}>Invite members:</Text>
             <TextInput
-                placeholder="Email"
-                placeholderTextColor= "#aaaaaa"
-                value={inviteInput.email}
-                onChangeText={(text) => setInviteInput({ ...inviteInput, email: text })}
-                style={styles.modalInput}
-                keyboardType="email-address"
-                autoCapitalize="none"
+              placeholder="Email"
+              placeholderTextColor="#aaaaaa"
+              value={inviteInput.email}
+              onChangeText={(text) =>
+                setInviteInput({ ...inviteInput, email: text })
+              }
+              style={styles.modalInput}
+              keyboardType="email-address"
+              autoCapitalize="none"
             />
             <TextInput
-                placeholder="Name"
-                placeholderTextColor= "#aaaaaa"
-                value={inviteInput.name}
-                onChangeText={(text) => setInviteInput({ ...inviteInput, name: text })}
-                style={styles.modalInput}
+              placeholder="Name"
+              placeholderTextColor="#aaaaaa"
+              value={inviteInput.name}
+              onChangeText={(text) =>
+                setInviteInput({ ...inviteInput, name: text })
+              }
+              style={styles.modalInput}
             />
 
-            {error? <Text style={styles.error}>{error}</Text> : null}
+            {error ? <Text style={styles.error}>{error}</Text> : null}
 
-            <TouchableOpacity 
-                style={styles.inviteButton}
-                onPress={() => onInvitePress()}
+            <TouchableOpacity
+              style={styles.inviteButton}
+              onPress={() => onInvitePress()}
             >
-                <Text style={styles.inviteButtonText}>Invite</Text>
+              <Text style={styles.inviteButtonText}>Invite</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-                style={styles.cancelButton}
-                onPress={() => setModalVisible(false)}>
-                <Text style={styles.cancelButtonText}>Close</Text>
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setModalVisible(false)}
+            >
+              <Text style={styles.cancelButtonText}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
     </View>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
-  modalOverlay: { 
-    flex: 1, 
-    justifyContent: "center", 
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
     backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
-  modalContent: { 
-    padding: 20, 
+  modalContent: {
+    padding: 20,
     backgroundColor: "white",
     width: "80%",
     borderRadius: 10,
   },
-  modalTitle: { 
-    fontSize: 20, 
-    fontWeight: "bold", 
-    marginBottom: 15,    
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 15,
   },
-  modalSubtitle: { 
-    marginTop: 15, 
-    fontWeight: "bold", 
-    marginBottom: 10, 
+  modalSubtitle: {
+    marginTop: 15,
+    fontWeight: "bold",
+    marginBottom: 10,
   },
   modalInput: {
     borderWidth: 1,
@@ -109,42 +126,42 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     borderRadius: 8,
   },
-  memberText: { 
-    fontSize: 14, 
-    marginBottom: 4 
+  memberText: {
+    fontSize: 14,
+    marginBottom: 4,
   },
   inviteButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
-    backgroundColor: '#007bff',
-    borderColor: '#000000',
+    backgroundColor: "#007bff",
+    borderColor: "#000000",
     padding: 6,
     borderRadius: 8,
   },
   inviteButtonText: {
     fontSize: 16,
-    color: '#ffffff',
+    color: "#ffffff",
   },
   cancelButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginTop: 10,
     borderWidth: 1,
-    backgroundColor: '#aaaaaa',
-    borderColor: '#000000',
+    backgroundColor: "#aaaaaa",
+    borderColor: "#000000",
     padding: 6,
     borderRadius: 8,
   },
   cancelButtonText: {
     fontSize: 16,
-    color: '#000000',
+    color: "#000000",
   },
   error: {
-    color: 'red',
+    color: "red",
     marginBottom: 10,
     fontSize: 10,
   },
-})
+});
 
 export default FleetDetailsModal;
