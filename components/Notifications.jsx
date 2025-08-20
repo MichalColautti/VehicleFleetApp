@@ -1,0 +1,143 @@
+import InviteItem from "@/components/InviteItem";
+import { acceptInvite, getPendingInvites, rejectInvite } from "@/services/fleetService";
+import { getAuth } from "firebase/auth";
+import { useEffect, useState } from "react";
+import {
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    StyleSheet,
+    Text,
+    View
+} from "react-native";
+
+const Notifications = () => {
+  const [invites, setInvites] = useState([]);
+  const auth = getAuth();
+  const currentUser = auth.currentUser;
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    if (currentUser) {
+      fetchPendingInvites();
+    }
+  }, [currentUser]);
+
+  const fetchPendingInvites = async () => {
+    try {
+      setLoading(true);
+      const pendingInvites = await getPendingInvites(currentUser);
+      setInvites(pendingInvites);
+    } catch (error) {
+      Alert.alert("Error", error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAccept = async (fleetId) => {
+    try {
+      await acceptInvite(fleetId, currentUser);
+      Alert.alert("Success", "You have been added to the fleet.");
+      fetchPendingInvites();
+    } catch (error) {
+      Alert.alert("Error", error.message);
+    }
+  };
+
+  const handleReject = async (fleetId) => {
+    try {
+      await rejectInvite(fleetId, currentUser);
+      Alert.alert("", "You have rejected the invite.");
+      fetchPendingInvites();
+    } catch (error) {
+      Alert.alert("Error", error.message);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchPendingInvites();
+    setRefreshing(false);
+  };
+
+  return (
+    <View style={styles.container}>
+      {loading ? (
+        <Text style={styles.subtitle}>Notifications: loading</Text>
+      ) : (
+        <Text style={styles.subtitle}>
+          Notifications: {invites?.length || 0}
+        </Text>
+      )}
+
+      <View style={styles.notificationsContainer}>
+        {loading ? (
+          <ActivityIndicator size="large" color="#0000ff" />
+        ) : (
+          <FlatList
+            data={invites}
+            keyExtractor={(item) => item.fleetId}
+            renderItem={({ item }) => (
+              <InviteItem
+                invite={item}
+                onAccept={handleAccept}
+                onReject={handleReject}
+              />
+            )}
+            ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                    <Text style={styles.noNotificationsText}>No new notifications</Text>
+                    </View>
+            }
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+          />
+        )}
+      </View>
+    </View>
+  );
+};
+
+export default Notifications;
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: "#ffffff",
+  },
+  notificationsContainer: {
+    padding: 10,
+    backgroundColor: "#eeeeeeff",
+    borderRadius: 10,
+    marginBottom: 20,
+    borderColor: "#000000",
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 225,
+    maxHeight: 225,
+  },
+  loading: {
+    padding: 50,
+    alignItems: "center",
+  },
+  subtitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
+    //textAlign: "center",
+  },
+  noNotificationsText: {
+    fontSize: 20,
+    color: "#5c5c5cff",
+    textAlign: "center",
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    height: 200,
+  },
+});
