@@ -2,10 +2,12 @@ import { db } from "@/config/firebaseConfig";
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   getDocs,
   query,
   setDoc,
+  updateDoc,
   where,
 } from "firebase/firestore";
 
@@ -74,4 +76,22 @@ export const getPendingInvites = async (user) => {
   }
 
   return pendingInvites;
+};
+
+export const acceptInvite = async (fleetId, user) => {
+  const memberRef = doc(db, "fleets", fleetId, "members", user.email);
+
+  await updateDoc(memberRef, {
+    status: "accepted",
+  });
+ 
+  return true;
+};
+
+export const rejectInvite = async (fleetId, user) => {
+  const memberRef = doc(db, "fleets", fleetId, "members", user.email);
+
+  await deleteDoc(memberRef);
+
+  return true;
 };

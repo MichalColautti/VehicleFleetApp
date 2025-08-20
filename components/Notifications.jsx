@@ -1,13 +1,60 @@
 import InviteItem from "@/components/InviteItem";
+import { acceptInvite, getPendingInvites, rejectInvite } from "@/services/fleetService";
+import { getAuth } from "firebase/auth";
+import { useEffect, useState } from "react";
 import {
     ActivityIndicator,
+    Alert,
     FlatList,
     StyleSheet,
     Text,
-    View,
+    View
 } from "react-native";
 
-const Notifications = ({ invites, loading, handleAccept, handleReject }) => {
+const Notifications = () => {
+  const [invites, setInvites] = useState([]);
+  const auth = getAuth();
+  const currentUser = auth.currentUser;
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (currentUser) {
+      fetchPendingInvites();
+    }
+  }, [currentUser]);
+
+  const fetchPendingInvites = async () => {
+    try {
+      setLoading(true);
+      const pendingInvites = await getPendingInvites(currentUser);
+      setInvites(pendingInvites);
+    } catch (error) {
+      Alert.alert("Error", error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAccept = async (fleetId) => {
+    try {
+      await acceptInvite(fleetId, currentUser);
+      Alert.alert("Success", "You have been added to the fleet.");
+      fetchPendingInvites();
+    } catch (error) {
+      Alert.alert("Error", error.message);
+    }
+  };
+
+  const handleReject = async (fleetId) => {
+    try {
+      await rejectInvite(fleetId, currentUser);
+      Alert.alert("", "You have rejected the invite.");
+      fetchPendingInvites();
+    } catch (error) {
+      Alert.alert("Error", error.message);
+    }
+  };
+
   return (
     <View style={styles.container}>
       {loading ? (
