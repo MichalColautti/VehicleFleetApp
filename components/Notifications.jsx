@@ -16,6 +16,7 @@ const Notifications = () => {
   const auth = getAuth();
   const currentUser = auth.currentUser;
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (currentUser) {
@@ -55,6 +56,12 @@ const Notifications = () => {
     }
   };
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchPendingInvites();
+    setRefreshing(false);
+  };
+
   return (
     <View style={styles.container}>
       {loading ? (
@@ -68,8 +75,6 @@ const Notifications = () => {
       <View style={styles.notificationsContainer}>
         {loading ? (
           <ActivityIndicator size="large" color="#0000ff" />
-        ) : invites.length === 0 ? (
-          <Text style={styles.noNotificationsText}>No new notifications</Text>
         ) : (
           <FlatList
             data={invites}
@@ -81,6 +86,13 @@ const Notifications = () => {
                 onReject={handleReject}
               />
             )}
+            ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                    <Text style={styles.noNotificationsText}>No new notifications</Text>
+                    </View>
+            }
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
           />
         )}
       </View>
@@ -121,5 +133,11 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: "#5c5c5cff",
     textAlign: "center",
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    height: 200,
   },
 });

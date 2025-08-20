@@ -1,11 +1,11 @@
 import { useState } from "react";
 import {
-    Modal,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Modal,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 const FleetDetailsModal = ({
@@ -46,11 +46,15 @@ const FleetDetailsModal = ({
             <Text style={styles.modalTitle}>{selectedFleet?.name}</Text>
 
             <Text style={styles.modalSubtitle}>Members:</Text>
-            {selectedFleet?.members.map((member) => (
-              <Text key={member.id} style={styles.memberText}>
-                {member.name} ({member.email}) – {member.status}
-              </Text>
-            ))}
+            {selectedFleet?.members && selectedFleet.members.length > 0 ? (
+              selectedFleet.members.map((member) => (
+                <Text key={member.id} style={styles.memberText}>
+                  {member.name} ({member.email}) – {member.status}
+                </Text>
+              ))
+            ) : (
+              <Text style={styles.noMembersText}>No members</Text>
+            )}
 
             <Text style={styles.modalSubtitle}>Invite members:</Text>
             <TextInput
@@ -162,6 +166,11 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     fontSize: 10,
   },
+  noMembersText: {
+    fontSize: 14,
+    color: "#aaaaaa",
+    marginLeft: 10,
+  },  
 });
 
 export default FleetDetailsModal;

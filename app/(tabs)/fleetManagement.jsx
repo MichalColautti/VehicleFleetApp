@@ -1,21 +1,21 @@
 import FleetDetailsModal from "@/components/FleetDetailsModal";
 import FleetItem from "@/components/FleetItem";
 import {
-    createFleet,
-    getUserFleetsWithMembers,
-    inviteUserToFleet,
+  createFleet,
+  getUserFleetsWithMembers,
+  inviteUserToFleet,
 } from "@/services/fleetService";
 import { getAuth } from "firebase/auth";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 const FleetManagementScreen = () => {
@@ -27,6 +27,7 @@ const FleetManagementScreen = () => {
   const [loading, setLoading] = useState(false);
   const auth = getAuth();
   const currentUser = auth.currentUser;
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (currentUser) {
@@ -100,6 +101,12 @@ const FleetManagementScreen = () => {
     }
   };
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchFleets(); 
+    setRefreshing(false);
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Create Fleet</Text>
@@ -129,6 +136,11 @@ const FleetManagementScreen = () => {
           renderItem={({ item }) => (
             <FleetItem handleOpenFleet={handleOpenFleet} item={item} />
           )}
+          ListEmptyComponent={
+            <Text style={styles.noFleetsText}>No fleets found</Text>
+          }
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
         />
       )}
 
@@ -179,6 +191,12 @@ const styles = StyleSheet.create({
   createFleetButtonText: {
     fontSize: 16,
     color: "#ffffff",
+  },
+  noFleetsText: {
+    textAlign: "center",
+    fontSize: 16,
+    color: "#aaaaaa",
+    marginTop: 20,
   },
 });
 
