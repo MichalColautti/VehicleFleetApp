@@ -1,9 +1,44 @@
 import DashboardIcon from "@/assets/icons/dashboard.svg";
 import FleetIcon from "@/assets/icons/fleet.svg";
 import MapIcon from "@/assets/icons/map.svg";
+import * as Location from "expo-location";
 import { Tabs } from "expo-router";
+import { getAuth } from "firebase/auth";
+import { useEffect } from "react";
+import { updateVechicleLocation } from "../../services/fleetService";
 
 const MainLayout = () => {
+  const auth = getAuth();
+  const user = auth.currentUser;
+
+  useEffect(() => {
+    if (!user) return;
+
+    let locationSubscription;
+
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === "granted") {
+        locationSubscription = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.High,
+            timeInterval: 10000,  // refresh every 10 seconds
+            distanceInterval: 10,  // refresh every 10 meters
+          },
+          (location) => {
+            const { latitude, longitude } = location.coords;
+            console.log("Location update:", user.email, latitude, longitude);
+            updateVechicleLocation(user.email, latitude, longitude);
+          }
+        );
+      }
+    })();
+
+    return () => {
+      if (locationSubscription) locationSubscription.remove();
+    };
+  }, [user]);
+
   return (
     <Tabs
       screenOptions={{

@@ -4,6 +4,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   query,
   setDoc,
@@ -94,4 +95,22 @@ export const rejectInvite = async (fleetId, user) => {
   await deleteDoc(memberRef);
 
   return true;
+};
+
+export const updateVechicleLocation = async (email, latitude, longitude) => {
+  if (!email) return;
+
+  const fleetsSnapshot = await getDocs(collection(db, "fleets"));
+  for (const fleetDoc of fleetsSnapshot.docs) {
+    const memberRef = doc(db, "fleets", fleetDoc.id, "members", email);
+    const memberSnap = await getDoc(memberRef);
+
+    if (memberSnap.exists()) {
+      await setDoc(memberRef, {
+        latitude,
+        longitude,
+        updatedAt: new Date(),
+      }, { merge: true });
+    }
+  }
 };
