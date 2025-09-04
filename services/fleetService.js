@@ -6,6 +6,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  onSnapshot,
   query,
   setDoc,
   updateDoc,
@@ -85,7 +86,7 @@ export const acceptInvite = async (fleetId, user) => {
   await updateDoc(memberRef, {
     status: "accepted",
   });
- 
+
   return true;
 };
 
@@ -106,11 +107,52 @@ export const updateVechicleLocation = async (email, latitude, longitude) => {
     const memberSnap = await getDoc(memberRef);
 
     if (memberSnap.exists()) {
-      await setDoc(memberRef, {
-        latitude,
-        longitude,
-        updatedAt: new Date(),
-      }, { merge: true });
+      await setDoc(
+        memberRef,
+        {
+          latitude,
+          longitude,
+          updatedAt: new Date(),
+        },
+        { merge: true }
+      );
     }
   }
+};
+
+export const listenToFleetMembersLocations = (ownerId, callback) => {
+  const fleetsRef = collection(db, "fleets");
+  const fleetsQuery = query(fleetsRef, where("ownerId", "==", ownerId));
+
+  const unsubscribes = [];
+
+  getDocs(fleetsQuery).then((fleetsSnap) => {
+    fleetsSnap.forEach((fleetDoc) => {
+      const membersRef = collection(db, "fleets", fleetDoc.id, "members");
+
+      // Initial fetch
+      getDocs(membersRef).then((initialSnap) => {
+        const initialMembers = initialSnap.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        callback(fleetDoc.id, initialMembers);
+      });
+
+      // Change listener
+      const unsubscribe = onSnapshot(membersRef, (snapshot) => {
+        const members = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        callback(fleetDoc.id, members);
+      });
+
+      unsubscribes.push(unsubscribe);
+    });
+  });
+
+  return () => {
+    unsubscribes.forEach((unsub) => unsub());
+  };
 };
