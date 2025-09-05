@@ -106,6 +106,8 @@ export const updateVechicleLocation = async (email, latitude, longitude) => {
     const memberRef = doc(db, "fleets", fleetDoc.id, "members", email);
     const memberSnap = await getDoc(memberRef);
 
+    const memberHistoryRef = collection(db, "fleets", fleetDoc.id, "members", email, "locationHistory");
+
     if (memberSnap.exists()) {
       await setDoc(
         memberRef,
@@ -115,6 +117,15 @@ export const updateVechicleLocation = async (email, latitude, longitude) => {
           updatedAt: new Date(),
         },
         { merge: true }
+      );
+
+      await addDoc(
+        memberHistoryRef,
+        {
+          latitude,
+          longitude,
+          time: new Date(),
+        }
       );
     }
   }
@@ -156,3 +167,15 @@ export const listenToFleetMembersLocations = (ownerId, callback) => {
     unsubscribes.forEach((unsub) => unsub());
   };
 };
+
+export const getMemberLocationHistory = async (fleetId, memberEmail) => {
+  const locationHistoryRef = collection(db, "fleets", fleetId, "members", memberEmail, "locationHistory");
+  const snapshot = await getDocs(locationHistoryRef);
+  const history = snapshot.docs.map(doc => ({ 
+    longitude: doc.data().longitude,
+    latitude: doc.data().latitude,
+    time: doc.data().time.toDate()
+  }));
+
+  return history;
+}
