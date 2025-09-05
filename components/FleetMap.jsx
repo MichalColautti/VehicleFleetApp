@@ -1,5 +1,6 @@
-import { StyleSheet } from "react-native";
-import MapView, { Marker, UrlTile } from "react-native-maps";
+import { StyleSheet, Text, View } from "react-native";
+import MapView, { Callout, Marker, UrlTile } from "react-native-maps";
+
 
 const FleetMap = ({ mapRef, location, members }) => {
   return (
@@ -28,9 +29,20 @@ const FleetMap = ({ mapRef, location, members }) => {
               longitude: member.longitude,
             }}
             title={member.email || "No email error"}
-            description={member.status || ""}
             pinColor="red"
-          />
+          >
+            <Callout>
+              <View>
+                <Text>{member.email || "No email"}</Text>
+                <Text>
+                  Speed: {member.speed ? (member.speed).toFixed(2) + " km/h" : "no record"}
+                </Text>
+                <Text>
+                  Status: {member.status || "no record"}
+                </Text>
+              </View>
+            </Callout>
+          </Marker>
         ) : null
       )}
     </MapView>

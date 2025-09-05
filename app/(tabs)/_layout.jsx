@@ -26,9 +26,9 @@ const MainLayout = () => {
             distanceInterval: 10,  // refresh every 10 meters
           },
           (location) => {
-            const { latitude, longitude } = location.coords;
-            console.log("Location update:", user.email, latitude, longitude);
-            updateVechicleLocation(user.email, latitude, longitude);
+            const { latitude, longitude, speed } = location.coords;
+            console.log("Location update:", user.email, latitude, longitude, speed);
+            updateVechicleLocation(user.email, latitude, longitude, speed);
           }
         );
       }

@@ -98,7 +98,9 @@ export const rejectInvite = async (fleetId, user) => {
   return true;
 };
 
-export const updateVechicleLocation = async (email, latitude, longitude) => {
+export const updateVechicleLocation = async (email, latitude, longitude, speed) => {
+  speed = speed * 3.6; // convert m/s to km/h
+  
   if (!email) return;
 
   const fleetsSnapshot = await getDocs(collection(db, "fleets"));
@@ -114,6 +116,7 @@ export const updateVechicleLocation = async (email, latitude, longitude) => {
         {
           latitude,
           longitude,
+          speed,
           updatedAt: new Date(),
         },
         { merge: true }
@@ -124,6 +127,7 @@ export const updateVechicleLocation = async (email, latitude, longitude) => {
         {
           latitude,
           longitude,
+          speed,
           time: new Date(),
         }
       );
