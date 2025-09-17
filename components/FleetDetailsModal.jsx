@@ -1,12 +1,7 @@
+import InviteNewMemberModal from "@/components/InviteNewMemberModal";
+import MembersList from "@/components/MembersList";
 import { useState } from "react";
-import {
-  Modal,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 const FleetDetailsModal = ({
   modalVisible,
@@ -16,22 +11,7 @@ const FleetDetailsModal = ({
   setInviteInput,
   handleInvite,
 }) => {
-  const [error, setError] = useState("");
-
-  const validateEmail = (email) => {
-    const reg = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
-    return reg.test(email);
-  };
-
-  const onInvitePress = () => {
-    if (!validateEmail(inviteInput.email)) {
-      setError("Please enter a valid email address");
-      return;
-    }
-
-    setError("");
-    handleInvite();
-  };
+  const [inviteModalVisible, setInviteModalVisible] = useState(false);
 
   return (
     <View>
@@ -44,48 +24,23 @@ const FleetDetailsModal = ({
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>{selectedFleet?.name}</Text>
-
-            <Text style={styles.modalSubtitle}>Members:</Text>
-            {selectedFleet?.members && selectedFleet.members.length > 0 ? (
-              selectedFleet.members.map((member) => (
-                <Text key={member.id} style={styles.memberText}>
-                  {member.name} ({member.email}) – {member.status}
-                </Text>
-              ))
-            ) : (
-              <Text style={styles.noMembersText}>No members</Text>
-            )}
-
-            <Text style={styles.modalSubtitle}>Invite members:</Text>
-            <TextInput
-              placeholder="Email"
-              placeholderTextColor="#aaaaaa"
-              value={inviteInput.email}
-              onChangeText={(text) =>
-                setInviteInput({ ...inviteInput, email: text })
-              }
-              style={styles.modalInput}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-            <TextInput
-              placeholder="Name"
-              placeholderTextColor="#aaaaaa"
-              value={inviteInput.name}
-              onChangeText={(text) =>
-                setInviteInput({ ...inviteInput, name: text })
-              }
-              style={styles.modalInput}
-            />
-
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-
+            
+            <MembersList members={selectedFleet?.members} />
+            
             <TouchableOpacity
               style={styles.inviteButton}
-              onPress={() => onInvitePress()}
+              onPress={() => setInviteModalVisible(true)}
             >
-              <Text style={styles.inviteButtonText}>Invite</Text>
+              <Text style={styles.inviteButtonText}>Invite new member</Text>
             </TouchableOpacity>
+
+            <InviteNewMemberModal
+              inviteModalVisible={inviteModalVisible}
+              setInviteModalVisible={setInviteModalVisible}
+              inviteInput={inviteInput}
+              setInviteInput={setInviteInput}
+              handleInvite={handleInvite}
+            />
 
             <TouchableOpacity
               style={styles.cancelButton}
@@ -161,16 +116,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#000000",
   },
-  error: {
-    color: "red",
-    marginBottom: 10,
-    fontSize: 10,
-  },
   noMembersText: {
     fontSize: 14,
     color: "#aaaaaa",
     marginLeft: 10,
-  },  
+  },
 });
 
 export default FleetDetailsModal;
