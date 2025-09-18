@@ -22,6 +22,11 @@ export const createFleet = async (ownerId, fleetName) => {
   return newFleetRef.id;
 };
 
+export const deleteFleet = async (fleetId) => {
+  const fleetRef = doc(db, "fleets", fleetId);
+  await deleteDoc(fleetRef);
+};
+
 export const inviteUserToFleet = async (fleetId, invitedEmail, name) => {
   const membersCollectionRef = collection(db, "fleets", fleetId, "members");
   const invitedUserDocRef = doc(membersCollectionRef, invitedEmail);

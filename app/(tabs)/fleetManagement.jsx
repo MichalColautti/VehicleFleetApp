@@ -3,6 +3,7 @@ import FleetDetailsModal from "@/components/FleetDetailsModal";
 import FleetItem from "@/components/FleetItem";
 import {
   createFleet,
+  deleteFleet,
   getUserFleetsWithMembers,
   inviteUserToFleet,
 } from "@/services/fleetService";
@@ -69,6 +70,28 @@ const FleetManagementScreen = () => {
     } catch (error) {
       Alert.alert("Error", error.message);
     }
+  };
+
+  const handleDeleteFleet = (fleetId) => {
+    Alert.alert("Delete Fleet", "Are you sure you want to delete this fleet?", [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteFleet(fleetId);
+            Alert.alert("Success", "Fleet deleted successfully");
+            fetchFleets();
+          } catch (error) {
+            Alert.alert("Error", error.message);
+          }
+        },
+      },
+    ]);
   };
 
   const handleOpenFleet = (fleet) => {
@@ -143,7 +166,7 @@ const FleetManagementScreen = () => {
             <View style={styles.fleetItemContainer}>
               <TouchableOpacity
                 style={styles.deleteButton}
-                onPress={() => console.log("Delete", item.name)}
+                onPress={() => handleDeleteFleet(item.id)}
               >
                 <DeleteIcon width={24} height={24} />
               </TouchableOpacity>
