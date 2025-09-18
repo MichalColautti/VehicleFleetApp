@@ -1,3 +1,4 @@
+import DeleteIcon from "@/assets/icons/delete.svg";
 import FleetDetailsModal from "@/components/FleetDetailsModal";
 import FleetItem from "@/components/FleetItem";
 import {
@@ -10,13 +11,13 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SwipeListView } from "react-native-swipe-list-view";
 
 const FleetManagementScreen = () => {
   const [fleetName, setFleetName] = useState("");
@@ -103,39 +104,54 @@ const FleetManagementScreen = () => {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchFleets(); 
+    await fetchFleets();
     setRefreshing(false);
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Create Fleet</Text>
+      <View style={{ padding: 16 }}>
+        <Text style={styles.title}>Create Fleet</Text>
 
-      <TextInput
-        placeholder="Fleet Name"
-        value={fleetName}
-        onChangeText={setFleetName}
-        style={styles.input}
-      />
+        <TextInput
+          placeholder="Fleet Name"
+          value={fleetName}
+          onChangeText={setFleetName}
+          style={styles.input}
+        />
 
-      <TouchableOpacity
-        style={styles.createFleetButton}
-        onPress={handleCreateFleet}
-      >
-        <Text style={styles.createFleetButtonText}>Create fleet</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.createFleetButton}
+          onPress={handleCreateFleet}
+        >
+          <Text style={styles.createFleetButtonText}>Create fleet</Text>
+        </TouchableOpacity>
 
-      <Text style={styles.title}>Your Fleets</Text>
+        <Text style={styles.title}>Your Fleets</Text>
+      </View>
 
       {loading ? (
         <ActivityIndicator size="large" color="#007bff" style={styles.loader} />
       ) : (
-        <FlatList
+        <SwipeListView
           data={fleets}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <FleetItem handleOpenFleet={handleOpenFleet} item={item} />
           )}
+          renderHiddenItem={({ item }) => (
+            <View style={styles.fleetItemContainer}>
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={() => console.log("Delete", item.name)}
+              >
+                <DeleteIcon width={24} height={24} />
+              </TouchableOpacity>
+            </View>
+          )}
+          rightOpenValue={-70}
+          disableRightSwipe
+          stopRightSwipe={-70}
           ListEmptyComponent={
             <Text style={styles.noFleetsText}>No fleets found</Text>
           }
@@ -159,13 +175,12 @@ const FleetManagementScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
   },
   title: {
     fontSize: 22,
     fontWeight: "bold",
-    marginBottom: 10,
-    marginTop: 10,
+    marginBottom: 8,
+    marginTop: 16,
     textAlign: "center",
   },
   input: {
@@ -197,6 +212,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#aaaaaa",
     marginTop: 20,
+  },
+  fleetItemContainer: {
+    alignItems: "center",
+    backgroundColor: "#fafafa",
+    flex: 1,
+    flexDirection: "row",
+    justifyContent: "flex-end",
+  },
+  deleteButton: {
+    backgroundColor: "red",
+    width: 70,
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  deleteButtonText: {
+    color: "#fff",
+    fontSize: 16,
   },
 });
 
