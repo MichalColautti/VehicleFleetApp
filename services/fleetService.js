@@ -24,6 +24,13 @@ export const createFleet = async (ownerId, fleetName) => {
 
 export const deleteFleet = async (fleetId) => {
   const fleetRef = doc(db, "fleets", fleetId);
+
+  const membersRef = collection(db, "fleets", fleetId, "members");
+  const memberSnap = await getDocs(membersRef);
+  for (const memberDoc of memberSnap.docs) {
+    await deleteDoc(memberDoc.ref);
+  }
+
   await deleteDoc(fleetRef);
 };
 
