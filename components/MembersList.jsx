@@ -1,9 +1,9 @@
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 const MembersList = ({ members }) => {
@@ -40,17 +40,16 @@ const styles = StyleSheet.create({
   },
   memberList: {
     maxHeight: 140,
-    marginLeft: 3,
+    borderLeftWidth: 1,
+    borderColor: "#ddd",
   },
   memberItem: {
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 10,
-    borderColor: "#000",
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: 8,
-    backgroundColor: "#e7e7e7ff",
+    borderBottomWidth: 1,
+    borderColor: "#ddd",
+    padding: 14,
+    backgroundColor: "#fff"
   },
   memberDetails: {
     fontSize: 14,
