@@ -1,6 +1,5 @@
-import DeleteIcon from "@/assets/icons/delete.svg";
 import FleetDetailsModal from "@/components/FleetDetailsModal";
-import FleetItem from "@/components/FleetItem";
+import FleetList from "@/components/FleetList";
 import {
   createFleet,
   deleteFleet,
@@ -18,7 +17,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SwipeListView } from "react-native-swipe-list-view";
 
 const FleetManagementScreen = () => {
   const [fleetName, setFleetName] = useState("");
@@ -156,30 +154,12 @@ const FleetManagementScreen = () => {
       {loading ? (
         <ActivityIndicator size="large" color="#007bff" style={styles.loader} />
       ) : (
-        <SwipeListView
-          data={fleets}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <FleetItem handleOpenFleet={handleOpenFleet} item={item} />
-          )}
-          renderHiddenItem={({ item }) => (
-            <View style={styles.fleetItemContainer}>
-              <TouchableOpacity
-                style={styles.deleteButton}
-                onPress={() => handleDeleteFleet(item.id)}
-              >
-                <DeleteIcon width={24} height={24} />
-              </TouchableOpacity>
-            </View>
-          )}
-          rightOpenValue={-70}
-          disableRightSwipe
-          stopRightSwipe={-70}
-          ListEmptyComponent={
-            <Text style={styles.noFleetsText}>No fleets found</Text>
-          }
+        <FleetList
+          fleets={fleets}
+          handleOpenFleet={handleOpenFleet}
+          handleDeleteFleet={handleDeleteFleet}
           refreshing={refreshing}
-          onRefresh={handleRefresh}
+          handleRefresh={handleRefresh}
         />
       )}
 
