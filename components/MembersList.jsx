@@ -1,20 +1,35 @@
+import MemberDetailsModal from "@/components/MemberDetailsModal";
+import { useState } from "react";
 import {
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 
 const MembersList = ({ members }) => {
+  const [memberModalVisible, setMemberModalVisible] = useState(false);
+  const [selectedMember, setSelectedMember] = useState(null);
+
+  const handleOpenMember = (member) => {
+    setSelectedMember(member);
+    setMemberModalVisible(true);
+  };
+
+  const handleCloseMember = () => {
+    setSelectedMember(null);
+    setMemberModalVisible(false);
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Members:</Text>
       <ScrollView style={styles.memberList}>
         {members && members.length > 0 ? (
           members.map((member) => (
-            <TouchableOpacity key={member.id} style={styles.memberItem}>
-              <Text style={styles.memberDetails}>
+            <TouchableOpacity key={member.id} style={styles.memberItem} onPress={() => handleOpenMember(member)}>
+              <Text style={styles.memberText}>
                 {member.name} ({member.email})
               </Text>
             </TouchableOpacity>
@@ -23,6 +38,13 @@ const MembersList = ({ members }) => {
           <Text style={styles.noMembersText}>No members</Text>
         )}
       </ScrollView>
+
+      <MemberDetailsModal
+        memberModalVisible={memberModalVisible}
+        handleCloseMember={handleCloseMember}
+        selectedMember={selectedMember}
+      />
+
     </View>
   );
 };
@@ -49,9 +71,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: "#ddd",
     padding: 14,
-    backgroundColor: "#fff"
+    backgroundColor: "#fff",
   },
-  memberDetails: {
+  memberText: {
     fontSize: 14,
     color: "#434343",
     textAlign: "center",
