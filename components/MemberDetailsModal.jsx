@@ -1,6 +1,22 @@
+import { getRoleById } from "@/services/roleService";
+import { useEffect, useState } from "react";
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 const MemberDetailsModal = ({ memberModalVisible, handleCloseMember, selectedMember }) => {
+  const [roleName, setRoleName] = useState("");
+
+  useEffect(() => {
+    const fetchRole = async () => {
+      if (selectedMember?.roleId) {
+        const role = await getRoleById(selectedMember.roleId);
+        setRoleName(role?.name || "Unknown role");
+      } else {
+        setRoleName("No role");
+      }
+    };
+    fetchRole();
+  }, [selectedMember]);
+
   return (
     <Modal
       visible={memberModalVisible}
@@ -18,6 +34,9 @@ const MemberDetailsModal = ({ memberModalVisible, handleCloseMember, selectedMem
               </Text>
               <Text style={styles.memberDetails}>
                 Email: {selectedMember.email}
+              </Text>
+              <Text style={styles.memberDetails}>
+                Role: {roleName}
               </Text>
               <Text style={styles.memberDetails}>
                 Status: {selectedMember.status}

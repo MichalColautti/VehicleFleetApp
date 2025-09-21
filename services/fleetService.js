@@ -34,7 +34,7 @@ export const deleteFleet = async (fleetId) => {
   await deleteDoc(fleetRef);
 };
 
-export const inviteUserToFleet = async (fleetId, invitedEmail, name) => {
+export const inviteUserToFleet = async (fleetId, invitedEmail, name, roleId) => {
   const membersCollectionRef = collection(db, "fleets", fleetId, "members");
   const invitedUserDocRef = doc(membersCollectionRef, invitedEmail);
 
@@ -42,6 +42,7 @@ export const inviteUserToFleet = async (fleetId, invitedEmail, name) => {
     name,
     email: invitedEmail,
     status: "pending",
+    roleId: roleId
   });
 };
 

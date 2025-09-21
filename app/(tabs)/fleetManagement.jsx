@@ -22,7 +22,7 @@ const FleetManagementScreen = () => {
   const [fleetName, setFleetName] = useState("");
   const [fleets, setFleets] = useState([]);
   const [selectedFleet, setSelectedFleet] = useState(null);
-  const [inviteInput, setInviteInput] = useState({ email: "", name: "" });
+  const [inviteInput, setInviteInput] = useState({ email: "", name: "", roleId: "" });
   const [modalVisible, setModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const auth = getAuth();
@@ -104,11 +104,17 @@ const FleetManagementScreen = () => {
       return;
     }
 
+    if (!inviteInput.roleId) {
+      Alert.alert("Error", "Please select a role for the new member");
+      return;
+    }
+
     try {
       await inviteUserToFleet(
         selectedFleet.id,
         inviteInput.email,
-        inviteInput.name
+        inviteInput.name,
+        inviteInput.roleId
       );
       Alert.alert("Success", "User invited successfully");
       setInviteInput({ email: "", name: "" });
