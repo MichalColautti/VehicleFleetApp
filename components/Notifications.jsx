@@ -3,12 +3,12 @@ import { acceptInvite, getPendingInvites, rejectInvite } from "@/services/fleetS
 import { getAuth } from "firebase/auth";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    StyleSheet,
-    Text,
-    View
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  StyleSheet,
+  Text,
+  View
 } from "react-native";
 
 const Notifications = () => {
@@ -19,15 +19,17 @@ const Notifications = () => {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    if (currentUser) {
+    if (currentUser?.uid) {
       fetchPendingInvites();
     }
   }, [currentUser]);
 
   const fetchPendingInvites = async () => {
+    if (!currentUser?.uid) return;
+
     try {
       setLoading(true);
-      const pendingInvites = await getPendingInvites(currentUser);
+      const pendingInvites = await getPendingInvites(currentUser.uid);
       setInvites(pendingInvites);
     } catch (error) {
       Alert.alert("Error", error.message);
@@ -36,9 +38,11 @@ const Notifications = () => {
     }
   };
 
-  const handleAccept = async (fleetId) => {
+  const handleAccept = async (membershipId) => {
+    if (!currentUser?.uid) return;
+
     try {
-      await acceptInvite(fleetId, currentUser);
+      await acceptInvite(membershipId);
       Alert.alert("Success", "You have been added to the fleet.");
       fetchPendingInvites();
     } catch (error) {
@@ -46,9 +50,11 @@ const Notifications = () => {
     }
   };
 
-  const handleReject = async (fleetId) => {
+  const handleReject = async (membershipId) => {
+    if (!currentUser?.uid) return;
+
     try {
-      await rejectInvite(fleetId, currentUser);
+      await rejectInvite(membershipId);
       Alert.alert("", "You have rejected the invite.");
       fetchPendingInvites();
     } catch (error) {
@@ -78,12 +84,12 @@ const Notifications = () => {
         ) : (
           <FlatList
             data={invites}
-            keyExtractor={(item) => item.fleetId}
+            keyExtractor={(item) => item.membershipId}
             renderItem={({ item }) => (
               <InviteItem
                 invite={item}
-                onAccept={handleAccept}
-                onReject={handleReject}
+                onAccept={() => handleAccept(item.membershipId)}
+                onReject={() => handleReject(item.membershipId)}
               />
             )}
             ListEmptyComponent={

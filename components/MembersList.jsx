@@ -5,10 +5,10 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 
-const MembersList = ({ members }) => {
+const MembersList = ({ members, handleDeleteMember }) => {
   const [memberModalVisible, setMemberModalVisible] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
 
@@ -28,10 +28,12 @@ const MembersList = ({ members }) => {
       <ScrollView style={styles.memberList}>
         {members && members.length > 0 ? (
           members.map((member) => (
-            <TouchableOpacity key={member.id} style={styles.memberItem} onPress={() => handleOpenMember(member)}>
-              <Text style={styles.memberText}>
-                {member.name} ({member.email})
-              </Text>
+            <TouchableOpacity
+              key={member.membershipId}
+              style={styles.memberItem}
+              onPress={() => handleOpenMember(member)}
+            >
+              <Text style={styles.memberText}>{member.email} {member.status === "pending" && "(pending)"}</Text>
             </TouchableOpacity>
           ))
         ) : (
@@ -43,8 +45,8 @@ const MembersList = ({ members }) => {
         memberModalVisible={memberModalVisible}
         handleCloseMember={handleCloseMember}
         selectedMember={selectedMember}
+        handleDeleteMember={handleDeleteMember}
       />
-
     </View>
   );
 };

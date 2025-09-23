@@ -2,7 +2,12 @@ import { getRoleById } from "@/services/roleService";
 import { useEffect, useState } from "react";
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
-const MemberDetailsModal = ({ memberModalVisible, handleCloseMember, selectedMember }) => {
+const MemberDetailsModal = ({
+  memberModalVisible,
+  handleCloseMember,
+  selectedMember,
+  handleDeleteMember,
+}) => {
   const [roleName, setRoleName] = useState("");
 
   useEffect(() => {
@@ -17,6 +22,15 @@ const MemberDetailsModal = ({ memberModalVisible, handleCloseMember, selectedMem
     fetchRole();
   }, [selectedMember]);
 
+  const handleDelete = async () => {
+    if (!selectedMember) return;
+
+    await handleDeleteMember(selectedMember);
+    handleCloseMember();
+  };
+
+  const deleteLabel = selectedMember?.status === "pending" ? "Delete Invite" : "Delete Member";
+
   return (
     <Modal
       visible={memberModalVisible}
@@ -30,19 +44,23 @@ const MemberDetailsModal = ({ memberModalVisible, handleCloseMember, selectedMem
           {selectedMember && (
             <>
               <Text style={styles.memberDetails}>
-                Name: {selectedMember.name}
-              </Text>
-              <Text style={styles.memberDetails}>
                 Email: {selectedMember.email}
               </Text>
-              <Text style={styles.memberDetails}>
-                Role: {roleName}
-              </Text>
+              <Text style={styles.memberDetails}>Role: {roleName}</Text>
               <Text style={styles.memberDetails}>
                 Status: {selectedMember.status}
               </Text>
             </>
           )}
+          {selectedMember && selectedMember.roleId !== "owner" && (
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={handleDelete}
+            >
+              <Text style={styles.deleteButtonText}>{deleteLabel}</Text>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
             style={styles.cancelButton}
             onPress={handleCloseMember}
@@ -56,7 +74,7 @@ const MemberDetailsModal = ({ memberModalVisible, handleCloseMember, selectedMem
 };
 
 const styles = StyleSheet.create({
-    modalOverlay: {
+  modalOverlay: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
@@ -89,6 +107,20 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   cancelButtonText: {
+    fontSize: 16,
+    color: "#000000",
+  },
+  deleteButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 10,
+    borderWidth: 1,
+    backgroundColor: "red",
+    borderColor: "#000000",
+    padding: 6,
+    borderRadius: 8,
+  },
+  deleteButtonText: {
     fontSize: 16,
     color: "#000000",
   },

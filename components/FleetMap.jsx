@@ -1,8 +1,25 @@
+import { getUserEmailById } from "@/services/fleetService";
+import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import MapView, { Callout, Marker, UrlTile } from "react-native-maps";
 
-
 const FleetMap = ({ mapRef, location, members }) => {
+  const [membersWithEmails, setMembersWithEmails] = useState([]);
+
+  useEffect(() => {
+    const fetchEmails = async () => {
+      const membersEmails = await Promise.all(
+        members.map(async (m) => {
+          const email = await getUserEmailById(m.userId);
+          return { ...m, email: email || "No email" };
+        })
+      );
+      setMembersWithEmails(membersEmails);
+    };
+
+    fetchEmails();
+  }, [members]);
+
   return (
     <MapView
       ref={mapRef}
@@ -20,10 +37,10 @@ const FleetMap = ({ mapRef, location, members }) => {
         zIndex={-1}
       />
 
-      {members.map((member) =>
+      {membersWithEmails.map((member) =>
         member.latitude != null && member.longitude != null ? (
           <Marker
-            key={`${member.fleetId}-${member.id}`}
+            key={member.membershipId}
             coordinate={{
               latitude: member.latitude,
               longitude: member.longitude,
@@ -35,11 +52,12 @@ const FleetMap = ({ mapRef, location, members }) => {
               <View>
                 <Text>{member.email || "No email"}</Text>
                 <Text>
-                  Speed: {member.speed ? (member.speed).toFixed(2) + " km/h" : "no record"}
+                  Speed:
+                  {member.speed != null
+                    ? member.speed.toFixed(2) + " km/h"
+                    : "no record"}
                 </Text>
-                <Text>
-                  Status: {member.status || "no record"}
-                </Text>
+                <Text>Status: {member.status || "no record"}</Text>
               </View>
             </Callout>
           </Marker>

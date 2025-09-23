@@ -1,5 +1,5 @@
 import { db } from "@/config/firebaseConfig";
-import { collection, doc, getDoc, getDocs } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
 
 export const getRoles = async () => {
   const rolesRef = collection(db, "roles");
@@ -21,9 +21,22 @@ export const getRolePermissions = async (roleId) => {
   return [];
 };
 
-export const hasPermission = async (roleId, permission) => {
-  const permissions = await getRolePermissions(roleId);
-  return permissions.includes(permission);
+export const hasPermissions = async (userId, fleetId, permission) => {
+  const membershipsSnap = await getDocs(
+    query(
+      collection(db, "fleet_memberships"),
+      where("userId", "==", userId),
+      where("fleetId", "==", fleetId),
+      where("status", "==", "accepted")
+    )
+  );
+
+  if (membershipsSnap.empty) return false;
+
+  const membership = membershipsSnap.docs[0].data();
+  const role = await getRoleById(membership.roleId);
+
+  return role?.permissions?.includes(permission);
 };
 
 export const getRoleById = async (roleId) => {

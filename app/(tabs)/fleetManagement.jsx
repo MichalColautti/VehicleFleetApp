@@ -3,8 +3,11 @@ import FleetList from "@/components/FleetList";
 import {
   createFleet,
   deleteFleet,
-  getUserFleetsWithMembers,
-  inviteUserToFleet,
+  deleteFleetMember,
+  getFleetMembersIncludingPending,
+  getUserFleets,
+  getUserIdByEmail,
+  inviteUserToFleet
 } from "@/services/fleetService";
 import { getAuth } from "firebase/auth";
 import { useEffect, useState } from "react";
@@ -22,7 +25,7 @@ const FleetManagementScreen = () => {
   const [fleetName, setFleetName] = useState("");
   const [fleets, setFleets] = useState([]);
   const [selectedFleet, setSelectedFleet] = useState(null);
-  const [inviteInput, setInviteInput] = useState({ email: "", name: "", roleId: "" });
+  const [inviteInput, setInviteInput] = useState({ email: "", roleId: "" });
   const [modalVisible, setModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const auth = getAuth();
@@ -38,9 +41,16 @@ const FleetManagementScreen = () => {
   const fetchFleets = async () => {
     setLoading(true);
     try {
-      const userFleets = await getUserFleetsWithMembers(currentUser.uid);
-      setFleets(userFleets);
-      return userFleets;
+      const userFleets = await getUserFleets(currentUser.uid);
+
+      const fleetsWithMembers = await Promise.all(
+        userFleets.map(async (fleet) => {
+          const members = await getFleetMembersIncludingPending(fleet.id);
+          return { ...fleet, members };
+        })
+      );
+      setFleets(fleetsWithMembers);
+      return fleetsWithMembers;
     } catch (error) {
       Alert.alert("Error", error.message);
       return [];
@@ -94,12 +104,12 @@ const FleetManagementScreen = () => {
 
   const handleOpenFleet = (fleet) => {
     setSelectedFleet(fleet);
-    setInviteInput({ email: "", name: "" });
+    setInviteInput({ email: "", roleId: "" });
     setModalVisible(true);
   };
 
   const handleInvite = async () => {
-    if (!inviteInput.email || !inviteInput.name || !selectedFleet) {
+    if (!inviteInput.email || !selectedFleet) {
       Alert.alert("Error", "All fields are required");
       return;
     }
@@ -109,15 +119,29 @@ const FleetManagementScreen = () => {
       return;
     }
 
+    //console.log("RoleId:", inviteInput.roleId, typeof inviteInput.roleId);
+
     try {
-      await inviteUserToFleet(
-        selectedFleet.id,
-        inviteInput.email,
-        inviteInput.name,
-        inviteInput.roleId
-      );
+      const userId = await getUserIdByEmail(inviteInput.email);
+
+      if (!userId) {
+        Alert.alert("Error", "User with this email does not exist");
+        return;
+      }
+
+      const currentMembers = await getFleetMembersIncludingPending(selectedFleet.id);
+      const memberInvited = currentMembers.some((m) => m.userId === userId);
+
+      if (memberInvited) {
+        Alert.alert("Error", "This user is already a member of the fleet");
+        return;
+      }
+
+      const chosenRole = inviteInput.roleId;
+      await inviteUserToFleet(selectedFleet.id, userId, inviteInput.roleId);
       Alert.alert("Success", "User invited successfully");
-      setInviteInput({ email: "", name: "" });
+
+      setInviteInput({ email: "", roleId: chosenRole });
 
       const updatedFleets = await fetchFleets();
       const updatedFleet = updatedFleets.find((f) => f.id === selectedFleet.id);
@@ -127,6 +151,38 @@ const FleetManagementScreen = () => {
     } catch (error) {
       Alert.alert("Error", error.message);
     }
+  };
+
+  const handleDeleteMember = async (member) => {
+    if (!selectedFleet || !member) return;
+
+    Alert.alert("Delete Fleet", "Are you sure you want to delete this member?", [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteFleetMember(member.membershipId);
+
+            const updatedFleets = await fetchFleets();
+            const updatedFleet = updatedFleets.find(
+              (f) => f.id === selectedFleet.id
+            );
+            if (updatedFleet) {
+              setSelectedFleet(updatedFleet);
+            }
+
+            Alert.alert("Success", "Member removed successfully");
+          } catch (error) {
+            Alert.alert("Error", error.message);
+          }
+        },
+      },
+    ]);
   };
 
   const handleRefresh = async () => {
@@ -176,6 +232,7 @@ const FleetManagementScreen = () => {
         inviteInput={inviteInput}
         setInviteInput={setInviteInput}
         handleInvite={handleInvite}
+        handleDeleteMember={handleDeleteMember}
       />
     </View>
   );

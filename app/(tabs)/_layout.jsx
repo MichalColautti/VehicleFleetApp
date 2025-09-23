@@ -28,7 +28,7 @@ const MainLayout = () => {
           (location) => {
             const { latitude, longitude, speed } = location.coords;
             console.log("Location update:", user.email, latitude, longitude, speed);
-            updateVechicleLocation(user.email, latitude, longitude, speed);
+            updateVechicleLocation(user.uid, latitude, longitude, speed);
           }
         );
       }

@@ -26,15 +26,24 @@ const InviteNewMemberModal = ({
     const fetchRoles = async () => {
       try {
         const rolesData = await getRoles();
-        const formattedRoles = rolesData.map(role => ({
-          label: role.name,
-          value: role.id,
-        }));
+        const formattedRoles = rolesData
+          .filter((role) => role.name.toLowerCase() !== "owner")
+          .map((role) => ({
+            label: role.name,
+            value: role.id,
+          }));
+
         setRoles(formattedRoles);
 
         if (formattedRoles.length > 0) {
-          setSelectedRole(formattedRoles[0].value);
-          setInviteInput(prev => ({ ...prev, roleId: formattedRoles[0].value }));
+          const driverRole = formattedRoles.find(
+            (r) => r.label.toLowerCase() === "driver"
+          );
+
+          const defaultRole = driverRole || formattedRoles[0];
+
+          setSelectedRole(defaultRole.value);
+          setInviteInput((prev) => ({ ...prev, roleId: defaultRole.value }));
         }
       } catch (error) {
         console.error("Error fetching roles:", error);
@@ -70,7 +79,7 @@ const InviteNewMemberModal = ({
         <View style={styles.modalContent}>
           <Text style={styles.modalTitle}>Invite Member</Text>
           <Text style={styles.modalSubtitle}>
-            Enter email and name to send invitation
+            Enter email and choose role to send invitation
           </Text>
           <TextInput
             placeholder="Email"
@@ -83,24 +92,19 @@ const InviteNewMemberModal = ({
             keyboardType="email-address"
             autoCapitalize="none"
           />
-          <TextInput
-            placeholder="Name"
-            placeholderTextColor="#aaaaaa"
-            value={inviteInput.name}
-            onChangeText={(text) =>
-              setInviteInput({ ...inviteInput, name: text })
-            }
-            style={styles.modalInput}
-          />
 
           <DropDownPicker
             open={open}
             value={selectedRole}
             items={roles}
             setOpen={setOpen}
-            setValue={(val) => {
-              setSelectedRole(val());
-              setInviteInput(prev => ({ ...prev, roleId: val() }));
+            setValue={(callbackOrValue) => {
+              const val =
+                typeof callbackOrValue === "function"
+                  ? callbackOrValue(selectedRole)
+                  : callbackOrValue;
+              setSelectedRole(val);
+              setInviteInput((prev) => ({ ...prev, roleId: val }));
             }}
             setItems={setRoles}
             style={styles.dropDownPicker}
@@ -118,7 +122,10 @@ const InviteNewMemberModal = ({
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.cancelButton}
-            onPress={() => setInviteModalVisible(false)}
+            onPress={() => {
+              setInviteModalVisible(false);
+              setInviteInput({ email: "", roleId: selectedRole });
+            }}
           >
             <Text style={styles.cancelButtonText}>Close</Text>
           </TouchableOpacity>

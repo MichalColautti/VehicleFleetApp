@@ -10,6 +10,7 @@ const FleetDetailsModal = ({
   inviteInput,
   setInviteInput,
   handleInvite,
+  handleDeleteMember,
 }) => {
   const [inviteModalVisible, setInviteModalVisible] = useState(false);
 
@@ -24,9 +25,12 @@ const FleetDetailsModal = ({
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>{selectedFleet?.name}</Text>
-            
-            <MembersList members={selectedFleet?.members} />
-            
+
+            <MembersList
+              members={selectedFleet?.members}
+              handleDeleteMember={handleDeleteMember}
+            />
+
             <TouchableOpacity
               style={styles.inviteButton}
               onPress={() => setInviteModalVisible(true)}

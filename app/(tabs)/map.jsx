@@ -45,19 +45,21 @@ const MapScreen = () => {
     const user = auth.currentUser;
     if (!user) return;
 
-    let unsubscribe;
-    unsubscribe = listenToFleetMembersLocations(
-      user.uid,
-      (fleetId, fleetMembers) => {
-        setMembers((prevMembers) => {
-          // Deleteing old members
-          const others = prevMembers.filter((m) => m.fleetId !== fleetId);
-          // Adding new members
-          const updated = fleetMembers.map((m) => ({ ...m, fleetId }));
-          return [...others, ...updated];
-        });
-      }
-    );
+    const unsubscribe = listenToFleetMembersLocations(user.uid, (fleetId, fleetMembers) => {
+      setMembers((prevMembers) => {
+        // Usuń poprzednich członków tej floty
+        const others = prevMembers.filter((m) => m.fleetId !== fleetId);
+
+        // Dodaj nowych członków z membershipId
+        const updated = fleetMembers.map((m) => ({
+          membershipId: m.membershipId || m.id || `${fleetId}-${m.userId}`,
+          ...m,
+          fleetId,
+        }));
+
+        return [...others, ...updated];
+      });
+    });
 
     return () => unsubscribe?.();
   }, []);
