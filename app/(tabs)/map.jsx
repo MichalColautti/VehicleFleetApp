@@ -1,5 +1,9 @@
 import FleetMap from "@/components/FleetMap";
-import { listenToFleetMembersLocations } from "@/services/fleetService";
+import {
+  getFleetMembers,
+  getFleetsForUserWithPermission,
+  listenToFleetMembersLocations,
+} from "@/services/fleetService";
 import * as Location from "expo-location";
 import { StatusBar } from "expo-status-bar";
 import { getAuth } from "firebase/auth";
@@ -40,29 +44,44 @@ const MapScreen = () => {
     })();
   }, []);
 
-  useEffect(() => {
-    const auth = getAuth();
-    const user = auth.currentUser;
-    if (!user) return;
+ useEffect(() => {
+  const auth = getAuth();
+  const user = auth.currentUser;
+  if (!user) return;
 
-    const unsubscribe = listenToFleetMembersLocations(user.uid, (fleetId, fleetMembers) => {
-      setMembers((prevMembers) => {
-        // Usuń poprzednich członków tej floty
-        const others = prevMembers.filter((m) => m.fleetId !== fleetId);
+  const setupFleetListeners = async () => {
+    const fleets = await getFleetsForUserWithPermission(user.uid, "view_drivers_position");
 
-        // Dodaj nowych członków z membershipId
-        const updated = fleetMembers.map((m) => ({
-          membershipId: m.membershipId || m.id || `${fleetId}-${m.userId}`,
-          ...m,
-          fleetId,
-        }));
+    let initialMembers = [];
+    for (const fleet of fleets) {
+      const membersSnapshot = await getFleetMembers(fleet.id); 
+      initialMembers = [...initialMembers, ...membersSnapshot];
+    }
+    setMembers(initialMembers);
 
-        return [...others, ...updated];
-      });
-    });
+    const unsubscribes = fleets.map((fleet) =>
+      listenToFleetMembersLocations(fleet.id, (fleetId, fleetMembers) => {
+        setMembers((prevMembers) => {
+          // Remove old members of this fleet
+          const others = prevMembers.filter((m) => m.fleetId !== fleetId);
 
-    return () => unsubscribe?.();
-  }, []);
+          // Add updated members of this fleet
+          const updated = fleetMembers.map((m) => ({
+            membershipId: m.membershipId || m.id || `${fleetId}-${m.userId}`,
+            ...m,
+            fleetId,
+          }));
+          return [...others, ...updated];
+        });
+      })
+    );
+
+    return () => unsubscribes.forEach((u) => u && u());
+  };
+
+  setupFleetListeners();
+}, []);
+
 
   return (
     <View style={styles.container}>

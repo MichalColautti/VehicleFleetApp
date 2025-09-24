@@ -5,7 +5,7 @@ import {
   deleteFleet,
   deleteFleetMember,
   getFleetMembersIncludingPending,
-  getUserFleets,
+  getOwnedFleets,
   getUserIdByEmail,
   inviteUserToFleet
 } from "@/services/fleetService";
@@ -41,7 +41,7 @@ const FleetManagementScreen = () => {
   const fetchFleets = async () => {
     setLoading(true);
     try {
-      const userFleets = await getUserFleets(currentUser.uid);
+      const userFleets = await getOwnedFleets(currentUser.uid);
 
       const fleetsWithMembers = await Promise.all(
         userFleets.map(async (fleet) => {

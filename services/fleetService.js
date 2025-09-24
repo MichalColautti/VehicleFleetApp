@@ -9,11 +9,15 @@ import {
   onSnapshot,
   query,
   updateDoc,
-  where
+  where,
 } from "firebase/firestore";
+import { getRoleById } from "./roleService";
 
 export const getUserIdByEmail = async (email) => {
-  const usersQuery = query(collection(db, "users"), where("email", "==", email));
+  const usersQuery = query(
+    collection(db, "users"),
+    where("email", "==", email)
+  );
   const usersSnap = await getDocs(usersQuery);
 
   if (usersSnap.empty) {
@@ -44,12 +48,11 @@ export const createFleet = async (ownerId, fleetName) => {
   await addDoc(membershipsRef, {
     fleetId: newFleetRef.id,
     userId: ownerId,
-    roleId: "owner",  
+    roleId: "owner",
     status: "accepted",
   });
 
   return newFleetRef.id;
-
 };
 
 export const deleteFleet = async (fleetId) => {
@@ -63,7 +66,10 @@ export const deleteFleet = async (fleetId) => {
 
   // Delete location history
   const locationSnap = await getDocs(
-    query(collection(db, "fleet_location_history"), where("fleetId", "==", fleetId))
+    query(
+      collection(db, "fleet_location_history"),
+      where("fleetId", "==", fleetId)
+    )
   );
   for (const docSnap of locationSnap.docs) {
     await deleteDoc(doc(db, "fleet_location_history", docSnap.id));
@@ -89,13 +95,73 @@ export const deleteFleetMember = async (membershipId) => {
   await deleteDoc(membershipRef);
 };
 
-export const getUserFleets = async (userId) => {
-  const fleetsQuery = query(collection(db, "fleets"), where("ownerId", "==", userId));
+export const getOwnedFleets = async (userId) => {
+  const fleetsQuery = query(
+    collection(db, "fleets"),
+    where("ownerId", "==", userId)
+  );
   const fleetsSnap = await getDocs(fleetsQuery);
 
   const fleets = [];
   for (const fleetDoc of fleetsSnap.docs) {
     fleets.push({ id: fleetDoc.id, ...fleetDoc.data() });
+  }
+
+  return fleets;
+};
+
+export const getUserFleets = async (userId) => {
+  const membershipsQuery = query(
+    collection(db, "fleet_memberships"),
+    where("userId", "==", userId),
+    where("status", "==", "accepted")
+  );
+  const membershipsSnap = await getDocs(membershipsQuery);
+
+  const fleets = [];
+  for (const membershipDoc of membershipsSnap.docs) {
+    const { fleetId } = membershipDoc.data();
+    const fleetRef = doc(db, "fleets", fleetId);
+    const fleetSnap = await getDoc(fleetRef);
+
+    if (fleetSnap.exists()) {
+      fleets.push({
+        id: fleetSnap.id,
+        ...fleetSnap.data(),
+        membershipId: membershipDoc.id,
+      });
+    }
+  }
+
+  return fleets;
+};
+
+export const getFleetsForUserWithPermission = async (userId, permission) => {
+  const membershipsQuery = query(
+    collection(db, "fleet_memberships"),
+    where("userId", "==", userId),
+    where("status", "==", "accepted")
+  );
+  const membershipsSnap = await getDocs(membershipsQuery);
+
+  const fleets = [];
+  for (const membershipDoc of membershipsSnap.docs) {
+    const membership = membershipDoc.data();
+    const fleetId = membership.fleetId;
+    const role = await getRoleById(membership.roleId);
+
+    if (role?.permissions?.includes(permission)) {
+      const fleetRef = doc(db, "fleets", fleetId);
+      const fleetSnap = await getDoc(fleetRef);
+      if (fleetSnap.exists()) {
+        fleets.push({
+          id: fleetSnap.id,
+          ...fleetSnap.data(),
+          membershipId: membershipDoc.id,
+          role: role ? { id: role.id, ...role } : null,
+        });
+      }
+    }
   }
 
   return fleets;
@@ -120,7 +186,9 @@ export const getFleetMembers = async (fleetId) => {
       return {
         ...membership,
         email: userSnap.exists() ? userSnap.data().email : null,
-        name: userSnap.exists() ? userSnap.data().name || "Unnamed" : "Unknown user",
+        name: userSnap.exists()
+          ? userSnap.data().name || "Unnamed"
+          : "Unknown user",
       };
     })
   );
@@ -130,10 +198,7 @@ export const getFleetMembers = async (fleetId) => {
 
 export const getFleetMembersIncludingPending = async (fleetId) => {
   const membershipsSnap = await getDocs(
-    query(
-      collection(db, "fleet_memberships"),
-      where("fleetId", "==", fleetId),
-    )
+    query(collection(db, "fleet_memberships"), where("fleetId", "==", fleetId))
   );
 
   const members = await Promise.all(
@@ -146,7 +211,9 @@ export const getFleetMembersIncludingPending = async (fleetId) => {
       return {
         ...membership,
         email: userSnap.exists() ? userSnap.data().email : null,
-        name: userSnap.exists() ? userSnap.data().name || "Unnamed" : "Unknown user",
+        name: userSnap.exists()
+          ? userSnap.data().name || "Unnamed"
+          : "Unknown user",
       };
     })
   );
@@ -165,7 +232,9 @@ export const getPendingInvites = async (userId) => {
 
   const invites = [];
   for (const membershipDoc of membershipsSnap.docs) {
-    const fleetDoc = await getDoc(doc(db, "fleets", membershipDoc.data().fleetId));
+    const fleetDoc = await getDoc(
+      doc(db, "fleets", membershipDoc.data().fleetId)
+    );
     if (fleetDoc.exists()) {
       invites.push({
         membershipId: membershipDoc.id,
@@ -189,11 +258,20 @@ export const rejectInvite = async (membershipId) => {
   await deleteDoc(membershipRef);
 };
 
-export const updateVechicleLocation = async (userId, latitude, longitude, speed) => {
+export const updateVechicleLocation = async (
+  userId,
+  latitude,
+  longitude,
+  speed
+) => {
   speed = speed * 3.6; // convert m/s to km/h
-  
+
   const membershipsSnap = await getDocs(
-    query(collection(db, "fleet_memberships"), where("userId", "==", userId), where("status", "==", "accepted"))
+    query(
+      collection(db, "fleet_memberships"),
+      where("userId", "==", userId),
+      where("status", "==", "accepted")
+    )
   );
 
   for (const membershipDoc of membershipsSnap.docs) {
@@ -218,39 +296,31 @@ export const updateVechicleLocation = async (userId, latitude, longitude, speed)
   }
 };
 
-export const listenToFleetMembersLocations = (ownerId, callback) => {
- const fleetsQuery = query(collection(db, "fleets"), where("ownerId", "==", ownerId));
+export const listenToFleetMembersLocations = (fleetId, callback) => {
+  const membershipsQuery = query(
+    collection(db, "fleet_memberships"),
+    where("fleetId", "==", fleetId),
+    where("status", "==", "accepted")
+  );
 
-  const unsubscribes = [];
-
-  getDocs(fleetsQuery).then((fleetsSnap) => {
-    fleetsSnap.forEach((fleetDoc) => {
-      const membershipsRef = query(
-        collection(db, "fleet_memberships"),
-        where("fleetId", "==", fleetDoc.id),
-        where("status", "==", "accepted")
-      );
-
-      const unsubscribe = onSnapshot(membershipsRef, async (snapshot) => {
-        const members = [];
-        for (const docSnap of snapshot.docs) {
-          const memberData = docSnap.data();
-          members.push({ membershipId: docSnap.id, ...memberData });
-        }
-        callback(fleetDoc.id, members);
-      });
-
-      unsubscribes.push(unsubscribe);
-    });
+  return onSnapshot(membershipsQuery, (snapshot) => {
+    const members = snapshot.docs.map((docSnap) => ({
+      membershipId: docSnap.id,
+      fleetId,
+      ...docSnap.data(),
+    }));
+    callback(fleetId, members);
   });
-
-  return () => unsubscribes.forEach((unsub) => unsub());
 };
 
 export const getMemberLocationHistory = async (fleetId, userId) => {
   const snapshot = await getDocs(
-    query(collection(db, "fleet_location_history"), where("fleetId", "==", fleetId), where("userId", "==", userId))
+    query(
+      collection(db, "fleet_location_history"),
+      where("fleetId", "==", fleetId),
+      where("userId", "==", userId)
+    )
   );
 
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 };

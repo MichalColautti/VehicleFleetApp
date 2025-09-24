@@ -8,12 +8,18 @@ const FleetMap = ({ mapRef, location, members }) => {
 
   useEffect(() => {
     const fetchEmails = async () => {
+      if (!members || members.length === 0) {
+        setMembersWithEmails([]);
+        return;
+      }
+
       const membersEmails = await Promise.all(
         members.map(async (m) => {
           const email = await getUserEmailById(m.userId);
           return { ...m, email: email || "No email" };
         })
       );
+
       setMembersWithEmails(membersEmails);
     };
 
@@ -22,6 +28,7 @@ const FleetMap = ({ mapRef, location, members }) => {
 
   return (
     <MapView
+      key={membersWithEmails.length}
       ref={mapRef}
       style={styles.map}
       initialRegion={{
