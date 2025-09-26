@@ -264,7 +264,6 @@ export const updateVechicleLocation = async (
   longitude,
   speed
 ) => {
-
   const membershipsSnap = await getDocs(
     query(
       collection(db, "fleet_memberships"),
@@ -349,7 +348,7 @@ export const getSpeedLimit = async (lat, lon) => {
   const url = `https://overpass.kumi.systems/api/interpreter`;
 
   try {
-    const res = await fetch(url, { method: 'POST', body: query });
+    const res = await fetch(url, { method: "POST", body: query });
     const data = await res.json();
 
     if (data.elements && data.elements.length > 0) {

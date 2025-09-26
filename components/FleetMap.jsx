@@ -56,7 +56,7 @@ const FleetMap = ({ mapRef, location, members }) => {
             pinColor="red"
           >
             <Callout>
-              <View>
+              <View style={styles.markerContainer}>
                 <Text>{member.email || "No email"}</Text>
                 <Text>
                   Speed:
@@ -77,6 +77,12 @@ const FleetMap = ({ mapRef, location, members }) => {
 const styles = StyleSheet.create({
   map: {
     flex: 1,
+  },
+  markerContainer: {
+    width: 120,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
 
