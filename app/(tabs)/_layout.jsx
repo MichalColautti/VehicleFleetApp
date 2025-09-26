@@ -1,11 +1,11 @@
 import DashboardIcon from "@/assets/icons/dashboard.svg";
 import FleetIcon from "@/assets/icons/fleet.svg";
 import MapIcon from "@/assets/icons/map.svg";
+import { getSpeedLimit, updateVechicleLocation } from "@/services/fleetService";
 import * as Location from "expo-location";
 import { Tabs } from "expo-router";
 import { getAuth } from "firebase/auth";
 import { useEffect } from "react";
-import { updateVechicleLocation } from "../../services/fleetService";
 
 const MainLayout = () => {
   const auth = getAuth();
@@ -22,13 +22,30 @@ const MainLayout = () => {
         locationSubscription = await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.High,
-            timeInterval: 10000,  // refresh every 10 seconds
-            distanceInterval: 10,  // refresh every 10 meters
+            timeInterval: 10000, // refresh every 10 seconds
+            distanceInterval: 10, // refresh every 10 meters
           },
           (location) => {
             const { latitude, longitude, speed } = location.coords;
-            console.log("Location update:", user.email, latitude, longitude, speed);
-            updateVechicleLocation(user.uid, latitude, longitude, speed);
+            const speedKmh = speed * 3.6; // convert m/s to km/h
+            /*console.log(
+              "Location update:",
+              user.email,
+              latitude,
+              longitude,
+              speed
+            );*/
+
+            getSpeedLimit(latitude, longitude).then((limit) => {
+              if (limit) {
+                //console.log(`Speed limit here: ${limit}, current speed: ${speedKmh}`);
+                if (speedKmh > limit) {
+                  //console.log(`Exceeded speed limit, current speed: ${speedKmh}, limit: ${limit}`);
+                }
+              }
+            });
+
+            updateVechicleLocation(user.uid, latitude, longitude, speedKmh);
           }
         );
       }
@@ -58,9 +75,9 @@ const MainLayout = () => {
           title: "Map",
           tabBarIcon: ({ focused }) => (
             <MapIcon
-                width={24}
-                height={24}
-                fill={focused ? "#007bff" : "#999"}
+              width={24}
+              height={24}
+              fill={focused ? "#007bff" : "#999"}
             />
           ),
         }}
@@ -71,9 +88,9 @@ const MainLayout = () => {
           title: "Dashboard",
           tabBarIcon: ({ focused }) => (
             <DashboardIcon
-                width={24}
-                height={24}
-                fill={focused ? "#007bff" : "#999"}
+              width={24}
+              height={24}
+              fill={focused ? "#007bff" : "#999"}
             />
           ),
         }}
@@ -84,15 +101,15 @@ const MainLayout = () => {
           title: "Fleet Management",
           tabBarIcon: ({ focused }) => (
             <FleetIcon
-                width={24}
-                height={24}
-                fill={focused ? "#007bff" : "#999"}
+              width={24}
+              height={24}
+              fill={focused ? "#007bff" : "#999"}
             />
           ),
         }}
       />
     </Tabs>
   );
-}
+};
 
 export default MainLayout;
