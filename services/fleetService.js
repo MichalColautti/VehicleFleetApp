@@ -260,6 +260,7 @@ export const rejectInvite = async (membershipId) => {
 
 export const updateVechicleLocation = async (
   userId,
+  fleetId,
   latitude,
   longitude,
   speed
@@ -268,13 +269,12 @@ export const updateVechicleLocation = async (
     query(
       collection(db, "fleet_memberships"),
       where("userId", "==", userId),
+      where("fleetId", "==", fleetId),
       where("status", "==", "accepted")
     )
   );
 
   for (const membershipDoc of membershipsSnap.docs) {
-    const { fleetId } = membershipDoc.data();
-
     const membershipRef = doc(db, "fleet_memberships", membershipDoc.id);
     await updateDoc(membershipRef, {
       latitude,

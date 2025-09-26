@@ -1,22 +1,42 @@
 import DashboardIcon from "@/assets/icons/dashboard.svg";
 import FleetIcon from "@/assets/icons/fleet.svg";
 import MapIcon from "@/assets/icons/map.svg";
-import { getSpeedLimit, updateVechicleLocation } from "@/services/fleetService";
+import {
+  getFleetsForUserWithPermission,
+  getSpeedLimit,
+  updateVechicleLocation,
+} from "@/services/fleetService";
 import * as Location from "expo-location";
 import { Tabs } from "expo-router";
 import { getAuth } from "firebase/auth";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 const MainLayout = () => {
   const auth = getAuth();
   const user = auth.currentUser;
+  const [fleetsWhereRecordPosition, setFleetsWhereRecordPosition] = useState(
+    []
+  );
 
   useEffect(() => {
     if (!user) return;
 
+    (async () => {
+      const fleets = await getFleetsForUserWithPermission(
+        user.uid,
+        "record_position"
+      );
+      //console.log("Fleets where user can record position:", fleets);
+      setFleetsWhereRecordPosition(fleets.map((f) => f.id));
+    })();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || fleetsWhereRecordPosition.length === 0) return;
+
     let locationSubscription;
 
-    (async () => {
+    const startLocationTracking = async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === "granted") {
         locationSubscription = await Location.watchPositionAsync(
@@ -26,35 +46,52 @@ const MainLayout = () => {
             distanceInterval: 10, // refresh every 10 meters
           },
           (location) => {
-            const { latitude, longitude, speed } = location.coords;
-            const speedKmh = speed * 3.6; // convert m/s to km/h
-            /*console.log(
-              "Location update:",
-              user.email,
-              latitude,
-              longitude,
-              speed
-            );*/
+            (async () => {
+              try {
+                const { latitude, longitude, speed } = location.coords;
+                const speedKmh = speed * 3.6; // convert m/s to km/h
+                /*console.log(
+                  "Location update:",
+                  user.email,
+                  latitude,
+                  longitude,
+                  speedKmh
+                );*/
 
-            getSpeedLimit(latitude, longitude).then((limit) => {
-              if (limit) {
-                //console.log(`Speed limit here: ${limit}, current speed: ${speedKmh}`);
-                if (speedKmh > limit) {
-                  //console.log(`Exceeded speed limit, current speed: ${speedKmh}, limit: ${limit}`);
+                const limit = await getSpeedLimit(latitude, longitude);
+                if (limit) {
+                  //console.log(`Speed limit here: ${limit}, current speed: ${speedKmh}`);
+                  if (speedKmh > limit) {
+                    //console.log(`Exceeded speed limit, current speed: ${speedKmh}, limit: ${limit}`);
+                  }
                 }
-              }
-            });
 
-            updateVechicleLocation(user.uid, latitude, longitude, speedKmh);
+                await Promise.all(
+                  fleetsWhereRecordPosition.map((fleetId) =>
+                    updateVechicleLocation(
+                      user.uid,
+                      fleetId,
+                      latitude,
+                      longitude,
+                      speedKmh
+                    )
+                  )
+                );
+              } catch (error) {
+                console.error("Error updating location:", error);
+              }
+            })();
           }
         );
       }
-    })();
+    };
+
+    startLocationTracking();
 
     return () => {
       if (locationSubscription) locationSubscription.remove();
     };
-  }, [user]);
+  }, [user, fleetsWhereRecordPosition]);
 
   return (
     <Tabs
