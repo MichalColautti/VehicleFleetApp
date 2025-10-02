@@ -1,10 +1,9 @@
-import Notifications from "@/components/Notifications";
-import { StyleSheet } from "react-native";
+import { StyleSheet, Text } from "react-native";
 
 const DashboardScreen = () => {
   
   return (
-    <Notifications/>
+    <Text>Dashboard</Text>
   );
 };
 

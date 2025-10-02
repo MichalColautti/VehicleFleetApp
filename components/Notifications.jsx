@@ -1,5 +1,9 @@
 import InviteItem from "@/components/InviteItem";
-import { acceptInvite, getPendingInvites, rejectInvite } from "@/services/fleetService";
+import {
+  acceptInvite,
+  getPendingInvites,
+  rejectInvite,
+} from "@/services/fleetService";
 import { getAuth } from "firebase/auth";
 import { useEffect, useState } from "react";
 import {
@@ -8,7 +12,7 @@ import {
   FlatList,
   StyleSheet,
   Text,
-  View
+  View,
 } from "react-native";
 
 const Notifications = () => {
@@ -93,9 +97,11 @@ const Notifications = () => {
               />
             )}
             ListEmptyComponent={
-                <View style={styles.emptyContainer}>
-                    <Text style={styles.noNotificationsText}>No new notifications</Text>
-                    </View>
+              <View style={styles.emptyContainer}>
+                <Text style={styles.noNotificationsText}>
+                  No new notifications
+                </Text>
+              </View>
             }
             refreshing={refreshing}
             onRefresh={handleRefresh}
@@ -109,11 +115,7 @@ const Notifications = () => {
 export default Notifications;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: "#ffffff",
-  },
+  
   notificationsContainer: {
     padding: 10,
     backgroundColor: "#eeeeeeff",
