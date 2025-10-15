@@ -1,14 +1,14 @@
 import InviteItem from "@/components/InviteItem";
-import { acceptInvite, getPendingInvites, rejectInvite } from "@/services/fleetService";
+import { acceptInvite, getPendingInvites, rejectInvite, } from "@/services/fleetMembershipService";
 import { getAuth } from "firebase/auth";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    StyleSheet,
-    Text,
-    View
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 
 const Notifications = () => {
@@ -19,15 +19,17 @@ const Notifications = () => {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    if (currentUser) {
+    if (currentUser?.uid) {
       fetchPendingInvites();
     }
   }, [currentUser]);
 
   const fetchPendingInvites = async () => {
+    if (!currentUser?.uid) return;
+
     try {
       setLoading(true);
-      const pendingInvites = await getPendingInvites(currentUser);
+      const pendingInvites = await getPendingInvites(currentUser.uid);
       setInvites(pendingInvites);
     } catch (error) {
       Alert.alert("Error", error.message);
@@ -36,9 +38,11 @@ const Notifications = () => {
     }
   };
 
-  const handleAccept = async (fleetId) => {
+  const handleAccept = async (membershipId) => {
+    if (!currentUser?.uid) return;
+
     try {
-      await acceptInvite(fleetId, currentUser);
+      await acceptInvite(membershipId);
       Alert.alert("Success", "You have been added to the fleet.");
       fetchPendingInvites();
     } catch (error) {
@@ -46,9 +50,11 @@ const Notifications = () => {
     }
   };
 
-  const handleReject = async (fleetId) => {
+  const handleReject = async (membershipId) => {
+    if (!currentUser?.uid) return;
+
     try {
-      await rejectInvite(fleetId, currentUser);
+      await rejectInvite(membershipId);
       Alert.alert("", "You have rejected the invite.");
       fetchPendingInvites();
     } catch (error) {
@@ -78,18 +84,20 @@ const Notifications = () => {
         ) : (
           <FlatList
             data={invites}
-            keyExtractor={(item) => item.fleetId}
+            keyExtractor={(item) => item.membershipId}
             renderItem={({ item }) => (
               <InviteItem
                 invite={item}
-                onAccept={handleAccept}
-                onReject={handleReject}
+                onAccept={() => handleAccept(item.membershipId)}
+                onReject={() => handleReject(item.membershipId)}
               />
             )}
             ListEmptyComponent={
-                <View style={styles.emptyContainer}>
-                    <Text style={styles.noNotificationsText}>No new notifications</Text>
-                    </View>
+              <View style={styles.emptyContainer}>
+                <Text style={styles.noNotificationsText}>
+                  No new notifications
+                </Text>
+              </View>
             }
             refreshing={refreshing}
             onRefresh={handleRefresh}
@@ -103,11 +111,7 @@ const Notifications = () => {
 export default Notifications;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: "#ffffff",
-  },
+  
   notificationsContainer: {
     padding: 10,
     backgroundColor: "#eeeeeeff",

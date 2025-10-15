@@ -1,10 +1,35 @@
+import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import MapView, { Callout, Marker, UrlTile } from "react-native-maps";
 
+import { getUserEmailById } from "@/services/userService";
 
 const FleetMap = ({ mapRef, location, members }) => {
+  const [membersWithEmails, setMembersWithEmails] = useState([]);
+
+  useEffect(() => {
+    const fetchEmails = async () => {
+      if (!members || members.length === 0) {
+        setMembersWithEmails([]);
+        return;
+      }
+
+      const membersEmails = await Promise.all(
+        members.map(async (m) => {
+          const email = await getUserEmailById(m.userId);
+          return { ...m, email: email || "No email" };
+        })
+      );
+
+      setMembersWithEmails(membersEmails);
+    };
+
+    fetchEmails();
+  }, [members]);
+
   return (
     <MapView
+      key={membersWithEmails.length}
       ref={mapRef}
       style={styles.map}
       initialRegion={{
@@ -20,10 +45,10 @@ const FleetMap = ({ mapRef, location, members }) => {
         zIndex={-1}
       />
 
-      {members.map((member) =>
+      {membersWithEmails.map((member) =>
         member.latitude != null && member.longitude != null ? (
           <Marker
-            key={`${member.fleetId}-${member.id}`}
+            key={member.membershipId}
             coordinate={{
               latitude: member.latitude,
               longitude: member.longitude,
@@ -32,14 +57,15 @@ const FleetMap = ({ mapRef, location, members }) => {
             pinColor="red"
           >
             <Callout>
-              <View>
+              <View style={styles.markerContainer}>
                 <Text>{member.email || "No email"}</Text>
                 <Text>
-                  Speed: {member.speed ? (member.speed).toFixed(2) + " km/h" : "no record"}
+                  Speed:
+                  {member.speed != null
+                    ? member.speed.toFixed(2) + " km/h"
+                    : "no record"}
                 </Text>
-                <Text>
-                  Status: {member.status || "no record"}
-                </Text>
+                <Text>Status: {member.status || "no record"}</Text>
               </View>
             </Callout>
           </Marker>
@@ -52,6 +78,12 @@ const FleetMap = ({ mapRef, location, members }) => {
 const styles = StyleSheet.create({
   map: {
     flex: 1,
+  },
+  markerContainer: {
+    width: 120,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
 

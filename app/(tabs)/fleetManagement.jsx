@@ -1,16 +1,10 @@
 import FleetDetailsModal from "@/components/FleetDetailsModal";
-import FleetItem from "@/components/FleetItem";
-import {
-  createFleet,
-  getUserFleetsWithMembers,
-  inviteUserToFleet,
-} from "@/services/fleetService";
+import FleetList from "@/components/FleetList";
 import { getAuth } from "firebase/auth";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
   StyleSheet,
   Text,
   TextInput,
@@ -18,11 +12,19 @@ import {
   View,
 } from "react-native";
 
+import { deleteFleetMember, getFleetMembersIncludingPending, inviteUserToFleet } from "@/services/fleetMembershipService";
+import {
+  createFleet,
+  deleteFleet,
+  getOwnedFleets,
+} from "@/services/fleetService";
+import { getUserIdByEmail } from "@/services/userService";
+
 const FleetManagementScreen = () => {
   const [fleetName, setFleetName] = useState("");
   const [fleets, setFleets] = useState([]);
   const [selectedFleet, setSelectedFleet] = useState(null);
-  const [inviteInput, setInviteInput] = useState({ email: "", name: "" });
+  const [inviteInput, setInviteInput] = useState({ email: "", roleId: "" });
   const [modalVisible, setModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const auth = getAuth();
@@ -38,9 +40,16 @@ const FleetManagementScreen = () => {
   const fetchFleets = async () => {
     setLoading(true);
     try {
-      const userFleets = await getUserFleetsWithMembers(currentUser.uid);
-      setFleets(userFleets);
-      return userFleets;
+      const userFleets = await getOwnedFleets(currentUser.uid);
+
+      const fleetsWithMembers = await Promise.all(
+        userFleets.map(async (fleet) => {
+          const members = await getFleetMembersIncludingPending(fleet.id);
+          return { ...fleet, members };
+        })
+      );
+      setFleets(fleetsWithMembers);
+      return fleetsWithMembers;
     } catch (error) {
       Alert.alert("Error", error.message);
       return [];
@@ -70,26 +79,68 @@ const FleetManagementScreen = () => {
     }
   };
 
+  const handleDeleteFleet = (fleetId) => {
+    Alert.alert("Delete Fleet", "Are you sure you want to delete this fleet?", [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteFleet(fleetId);
+            Alert.alert("Success", "Fleet deleted successfully");
+            fetchFleets();
+          } catch (error) {
+            Alert.alert("Error", error.message);
+          }
+        },
+      },
+    ]);
+  };
+
   const handleOpenFleet = (fleet) => {
     setSelectedFleet(fleet);
-    setInviteInput({ email: "", name: "" });
+    setInviteInput({ email: "", roleId: "" });
     setModalVisible(true);
   };
 
   const handleInvite = async () => {
-    if (!inviteInput.email || !inviteInput.name || !selectedFleet) {
+    if (!inviteInput.email || !selectedFleet) {
       Alert.alert("Error", "All fields are required");
       return;
     }
 
+    if (!inviteInput.roleId) {
+      Alert.alert("Error", "Please select a role for the new member");
+      return;
+    }
+
+    //console.log("RoleId:", inviteInput.roleId, typeof inviteInput.roleId);
+
     try {
-      await inviteUserToFleet(
-        selectedFleet.id,
-        inviteInput.email,
-        inviteInput.name
-      );
+      const userId = await getUserIdByEmail(inviteInput.email);
+
+      if (!userId) {
+        Alert.alert("Error", "User with this email does not exist");
+        return;
+      }
+
+      const currentMembers = await getFleetMembersIncludingPending(selectedFleet.id);
+      const memberInvited = currentMembers.some((m) => m.userId === userId);
+
+      if (memberInvited) {
+        Alert.alert("Error", "This user is already a member of the fleet");
+        return;
+      }
+
+      const chosenRole = inviteInput.roleId;
+      await inviteUserToFleet(selectedFleet.id, userId, inviteInput.roleId);
       Alert.alert("Success", "User invited successfully");
-      setInviteInput({ email: "", name: "" });
+
+      setInviteInput({ email: "", roleId: chosenRole });
 
       const updatedFleets = await fetchFleets();
       const updatedFleet = updatedFleets.find((f) => f.id === selectedFleet.id);
@@ -101,46 +152,75 @@ const FleetManagementScreen = () => {
     }
   };
 
+  const handleDeleteMember = async (member) => {
+    if (!selectedFleet || !member) return;
+
+    Alert.alert("Delete Fleet", "Are you sure you want to delete this member?", [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteFleetMember(member.membershipId);
+
+            const updatedFleets = await fetchFleets();
+            const updatedFleet = updatedFleets.find(
+              (f) => f.id === selectedFleet.id
+            );
+            if (updatedFleet) {
+              setSelectedFleet(updatedFleet);
+            }
+
+            Alert.alert("Success", "Member removed successfully");
+          } catch (error) {
+            Alert.alert("Error", error.message);
+          }
+        },
+      },
+    ]);
+  };
+
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchFleets(); 
+    await fetchFleets();
     setRefreshing(false);
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Create Fleet</Text>
+      <View style={{ padding: 16 }}>
+        <Text style={styles.title}>Create Fleet</Text>
 
-      <TextInput
-        placeholder="Fleet Name"
-        value={fleetName}
-        onChangeText={setFleetName}
-        style={styles.input}
-      />
+        <TextInput
+          placeholder="Fleet Name"
+          value={fleetName}
+          onChangeText={setFleetName}
+          style={styles.input}
+        />
 
-      <TouchableOpacity
-        style={styles.createFleetButton}
-        onPress={handleCreateFleet}
-      >
-        <Text style={styles.createFleetButtonText}>Create fleet</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.createFleetButton}
+          onPress={handleCreateFleet}
+        >
+          <Text style={styles.createFleetButtonText}>Create fleet</Text>
+        </TouchableOpacity>
 
-      <Text style={styles.title}>Your Fleets</Text>
+        <Text style={styles.title}>Your Fleets</Text>
+      </View>
 
       {loading ? (
         <ActivityIndicator size="large" color="#007bff" style={styles.loader} />
       ) : (
-        <FlatList
-          data={fleets}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <FleetItem handleOpenFleet={handleOpenFleet} item={item} />
-          )}
-          ListEmptyComponent={
-            <Text style={styles.noFleetsText}>No fleets found</Text>
-          }
+        <FleetList
+          fleets={fleets}
+          handleOpenFleet={handleOpenFleet}
+          handleDeleteFleet={handleDeleteFleet}
           refreshing={refreshing}
-          onRefresh={handleRefresh}
+          handleRefresh={handleRefresh}
         />
       )}
 
@@ -151,6 +231,7 @@ const FleetManagementScreen = () => {
         inviteInput={inviteInput}
         setInviteInput={setInviteInput}
         handleInvite={handleInvite}
+        handleDeleteMember={handleDeleteMember}
       />
     </View>
   );
@@ -159,13 +240,12 @@ const FleetManagementScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
   },
   title: {
     fontSize: 22,
     fontWeight: "bold",
-    marginBottom: 10,
-    marginTop: 10,
+    marginBottom: 8,
+    marginTop: 16,
     textAlign: "center",
   },
   input: {
@@ -197,6 +277,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#aaaaaa",
     marginTop: 20,
+  },
+  fleetItemContainer: {
+    alignItems: "center",
+    backgroundColor: "#fafafa",
+    flex: 1,
+    flexDirection: "row",
+    justifyContent: "flex-end",
+  },
+  deleteButton: {
+    backgroundColor: "red",
+    width: 70,
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  deleteButtonText: {
+    color: "#fff",
+    fontSize: 16,
   },
 });
 

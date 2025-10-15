@@ -1,5 +1,6 @@
-import { auth } from "@/config/firebaseConfig";
+import { auth, db } from "@/config/firebaseConfig";
 import { createUserWithEmailAndPassword, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
 import { createContext, useContext, useEffect, useState } from "react";
 
 
@@ -30,6 +31,14 @@ export const AuthProvider = ({ children }) => {
   const register = async (email, password) => {
     try {
       await createUserWithEmailAndPassword(auth,email,password)
+
+      const user = auth.currentUser;
+    if (!user) throw new Error("User not found after registration");
+
+    await setDoc(doc(db, "users", user.uid), {
+      email: email,
+    });
+
       return login(email, password);
     } catch (error) {
       return {error: error.message}
