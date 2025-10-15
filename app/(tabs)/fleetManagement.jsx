@@ -12,12 +12,21 @@ import {
   View,
 } from "react-native";
 
-import { deleteFleetMember, getFleetMembersIncludingPending, inviteUserToFleet } from "@/services/fleetMembershipService";
+import {
+  deleteFleetMember,
+  getFleetMembersIncludingPending,
+  inviteUserToFleet,
+} from "@/services/fleetMembershipService";
 import {
   createFleet,
   deleteFleet,
   getOwnedFleets,
 } from "@/services/fleetService";
+import {
+  addVehicle,
+  deleteVehicle,
+  getFleetVehicles,
+} from "@/services/fleetVechicleService";
 import { getUserIdByEmail } from "@/services/userService";
 
 const FleetManagementScreen = () => {
@@ -49,7 +58,16 @@ const FleetManagementScreen = () => {
         })
       );
       setFleets(fleetsWithMembers);
-      return fleetsWithMembers;
+
+      const fleetsWithVehicles = await Promise.all(
+        fleetsWithMembers.map(async (fleet) => {
+          const vehicles = await getFleetVehicles(fleet.id);
+          return { ...fleet, vehicles };
+        })
+      );
+      setFleets(fleetsWithVehicles);
+
+      return fleetsWithVehicles;
     } catch (error) {
       Alert.alert("Error", error.message);
       return [];
@@ -128,7 +146,9 @@ const FleetManagementScreen = () => {
         return;
       }
 
-      const currentMembers = await getFleetMembersIncludingPending(selectedFleet.id);
+      const currentMembers = await getFleetMembersIncludingPending(
+        selectedFleet.id
+      );
       const memberInvited = currentMembers.some((m) => m.userId === userId);
 
       if (memberInvited) {
@@ -155,33 +175,70 @@ const FleetManagementScreen = () => {
   const handleDeleteMember = async (member) => {
     if (!selectedFleet || !member) return;
 
-    Alert.alert("Delete Fleet", "Are you sure you want to delete this member?", [
-      {
-        text: "Cancel",
-        style: "cancel",
-      },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await deleteFleetMember(member.membershipId);
-
-            const updatedFleets = await fetchFleets();
-            const updatedFleet = updatedFleets.find(
-              (f) => f.id === selectedFleet.id
-            );
-            if (updatedFleet) {
-              setSelectedFleet(updatedFleet);
-            }
-
-            Alert.alert("Success", "Member removed successfully");
-          } catch (error) {
-            Alert.alert("Error", error.message);
-          }
+    Alert.alert(
+      "Delete Fleet",
+      "Are you sure you want to delete this member?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
         },
-      },
-    ]);
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteFleetMember(member.membershipId);
+
+              const updatedFleets = await fetchFleets();
+              const updatedFleet = updatedFleets.find(
+                (f) => f.id === selectedFleet.id
+              );
+              if (updatedFleet) {
+                setSelectedFleet(updatedFleet);
+              }
+
+              Alert.alert("Success", "Member removed successfully");
+            } catch (error) {
+              Alert.alert("Error", error.message);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleAddVehicle = async (fleetId, vehicleData) => {
+    try {
+      //console.log("Adding vehicle:", fleetId, vehicleData);
+      await addVehicle(
+        fleetId,
+        vehicleData.name,
+        vehicleData.registrationNumber
+      );
+      Alert.alert("Success", "Vehicle added successfully");
+      const updatedFleets = await fetchFleets();
+      const updatedFleet = updatedFleets.find((f) => f.id === fleetId);
+      if (updatedFleet) setSelectedFleet(updatedFleet);
+    } catch (error) {
+      Alert.alert("Error", error.message);
+    }
+  };
+
+  const handleDeleteVehicle = async (vehicleId) => {
+    try {
+      await deleteVehicle(vehicleId);
+      Alert.alert("Success", "Vehicle deleted successfully");
+
+      const updatedFleet = {
+        ...selectedFleet,
+        vehicles: selectedFleet.vehicles.filter((v) => v.id !== vehicleId),
+      };
+      setSelectedFleet(updatedFleet);
+      fetchFleets();
+    } catch (error) {
+      Alert.alert("Error", error.message);
+    }
   };
 
   const handleRefresh = async () => {
@@ -232,6 +289,8 @@ const FleetManagementScreen = () => {
         setInviteInput={setInviteInput}
         handleInvite={handleInvite}
         handleDeleteMember={handleDeleteMember}
+        handleAddVehicle={handleAddVehicle}
+        handleDeleteVehicle={handleDeleteVehicle}
       />
     </View>
   );

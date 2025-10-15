@@ -48,6 +48,10 @@ export const updateVechicleLocation = async (
 };
 
 export const addVehicle = async (fleetId, name, registrationNumber) => {
+  // console.log("fleetId:", fleetId);
+  // console.log("name:", name);
+  // console.log("registrationNumber:", registrationNumber);
+
   const vehiclesRef = collection(db, "vehicles");
   const newVehicle = await addDoc(vehiclesRef, {
     fleetId: fleetId,
@@ -55,26 +59,25 @@ export const addVehicle = async (fleetId, name, registrationNumber) => {
     registrationNumber: registrationNumber,
   });
   return newVehicle.id;
-}
+};
 
 export const getFleetVehicles = async (fleetId) => {
   const vehiclesSnap = await getDocs(
-    query(
-      collection(db, "vehicles"),
-      where("fleetId", "==", fleetId)
-    )
-  )
+    query(collection(db, "vehicles"), where("fleetId", "==", fleetId))
+  );
 
-  return vehiclesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-}
+  return vehiclesSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+};
 
 export const deleteVehicle = async (vehicleId) => {
   const vhicleRef = doc(db, "vehicles", vehicleId);
   await deleteDoc(vhicleRef);
-}
+};
 
-export const getVehicleById = async(vehicleId) => {
-  const vehicleRef = doc(db,"vehicles",vehicleId);
+export const getVehicleById = async (vehicleId) => {
+  const vehicleRef = doc(db, "vehicles", vehicleId);
   const vehicleSnap = await getDoc(vehicleRef);
-  return vehicleSnap.exists() ? { id: vehicleSnap.id, ...vehicleSnap.data() } : null; 
-}
+  return vehicleSnap.exists()
+    ? { id: vehicleSnap.id, ...vehicleSnap.data() }
+    : null;
+};
