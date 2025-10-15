@@ -1,9 +1,5 @@
 import InviteItem from "@/components/InviteItem";
-import {
-  acceptInvite,
-  getPendingInvites,
-  rejectInvite,
-} from "@/services/fleetService";
+import { acceptInvite, getPendingInvites, rejectInvite, } from "@/services/fleetMembershipService";
 import { getAuth } from "firebase/auth";
 import { useEffect, useState } from "react";
 import {

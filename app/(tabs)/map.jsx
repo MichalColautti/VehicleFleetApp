@@ -1,14 +1,12 @@
 import FleetMap from "@/components/FleetMap";
-import {
-  getFleetMembers,
-  getFleetsForUserWithPermission,
-  listenToFleetMembersLocations,
-} from "@/services/fleetService";
 import * as Location from "expo-location";
 import { StatusBar } from "expo-status-bar";
 import { getAuth } from "firebase/auth";
 import { useEffect, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
+
+import { getFleetMembers, getFleetsForUserWithPermission } from "@/services/fleetMembershipService";
+import { listenToFleetMembersLocations } from "@/services/locationService";
 
 const MapScreen = () => {
   const [location, setLocation] = useState(null);

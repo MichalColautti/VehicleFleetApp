@@ -1,6 +1,6 @@
 import NitificationsIcon from "@/assets/icons/notifications.svg";
 import Notifications from "@/components/Notifications";
-import { getPendingInvites } from "@/services/fleetService";
+import { getPendingInvites } from "@/services/fleetMembershipService";
 import { getAuth } from "firebase/auth";
 import { useEffect, useState } from "react";
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";

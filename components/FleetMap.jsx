@@ -1,7 +1,8 @@
-import { getUserEmailById } from "@/services/fleetService";
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import MapView, { Callout, Marker, UrlTile } from "react-native-maps";
+
+import { getUserEmailById } from "@/services/userService";
 
 const FleetMap = ({ mapRef, location, members }) => {
   const [membersWithEmails, setMembersWithEmails] = useState([]);

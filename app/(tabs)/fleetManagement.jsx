@@ -1,14 +1,5 @@
 import FleetDetailsModal from "@/components/FleetDetailsModal";
 import FleetList from "@/components/FleetList";
-import {
-  createFleet,
-  deleteFleet,
-  deleteFleetMember,
-  getFleetMembersIncludingPending,
-  getOwnedFleets,
-  getUserIdByEmail,
-  inviteUserToFleet
-} from "@/services/fleetService";
 import { getAuth } from "firebase/auth";
 import { useEffect, useState } from "react";
 import {
@@ -20,6 +11,14 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+import { deleteFleetMember, getFleetMembersIncludingPending, inviteUserToFleet } from "@/services/fleetMembershipService";
+import {
+  createFleet,
+  deleteFleet,
+  getOwnedFleets,
+} from "@/services/fleetService";
+import { getUserIdByEmail } from "@/services/userService";
 
 const FleetManagementScreen = () => {
   const [fleetName, setFleetName] = useState("");
