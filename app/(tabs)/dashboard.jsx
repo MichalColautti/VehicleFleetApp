@@ -1,8 +1,10 @@
 import { getFleetsForUserWithPermission } from "@/services/fleetMembershipService";
+import { getFleetVehicles } from "@/services/fleetVechicleService";
 import {
-  getFleetVehicles,
-  updateVechicleLocation,
-} from "@/services/fleetVechicleService";
+  endTrip,
+  startTrip,
+  updateTripLocation,
+} from "@/services/locationService";
 import * as Location from "expo-location";
 import { getAuth } from "firebase/auth";
 import { useEffect, useRef, useState } from "react";
@@ -32,6 +34,8 @@ const DashboardScreen = () => {
 
   const [recording, setRecording] = useState(false);
   const locationSubscription = useRef(null);
+
+  const [currentTrip, setCurrentTrip] = useState(null);
 
   const auth = getAuth();
   const user = auth.currentUser;
@@ -86,6 +90,17 @@ const DashboardScreen = () => {
       return;
     }
 
+    const pos = await Location.getCurrentPositionAsync({});
+    const { latitude, longitude } = pos.coords;
+
+    const tripId = await startTrip(
+      user.uid,
+      selectedFleet,
+      selectedVehicle,
+      latitude,
+      longitude
+    );
+    setCurrentTrip(tripId);
     setRecording(true);
 
     locationSubscription.current = await Location.watchPositionAsync(
@@ -97,28 +112,22 @@ const DashboardScreen = () => {
       async (location) => {
         const { latitude, longitude, speed } = location.coords;
         const speedKmh = speed * 3.6;
-        console.log('lat:', latitude, "lon:", longitude, "speed", speedKmh)
-
-        try {
-          await updateVechicleLocation(
-            user.uid,
-            selectedFleet,
-            latitude,
-            longitude,
-            speedKmh,
-            selectedVehicle,
-          );
-        } catch (error) {
-          console.error("Error updating location:", error);
-        }
+        await updateTripLocation(tripId, latitude, longitude, speedKmh);
       }
     );
   };
 
-  const stopRecording = () => {
+  const stopRecording = async () => {
     if (locationSubscription.current) {
+      const lastPos = await Location.getCurrentPositionAsync({});
+      await endTrip(
+        currentTrip,
+        lastPos.coords.latitude,
+        lastPos.coords.longitude
+      );
       locationSubscription.current.remove();
       locationSubscription.current = null;
+      setCurrentTrip(null);
       setRecording(false);
     }
   };

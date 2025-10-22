@@ -1,10 +1,14 @@
 import { db } from "@/config/firebaseConfig";
 import {
-    collection,
-    getDocs,
-    onSnapshot,
-    query,
-    where,
+  addDoc,
+  arrayUnion,
+  collection,
+  doc,
+  getDocs,
+  onSnapshot,
+  query,
+  updateDoc,
+  where,
 } from "firebase/firestore";
 
 export const listenToFleetMembersLocations = (fleetId, callback) => {
@@ -77,4 +81,56 @@ export const getSpeedLimit = async (lat, lon) => {
     console.error("Overpass error:", err);
     return undefined;
   }
+};
+
+export const startTrip = async (
+  userId,
+  fleetId,
+  vehicleId,
+  latitude,
+  longitude
+) => {
+  const tripsRef = collection(db, "trips");
+  const newTrip = await addDoc(tripsRef, {
+    userId,
+    fleetId,
+    vehicleId,
+    startTime: new Date(),
+    endTime: null,
+    active: true,
+    points: [
+      {
+        lat: latitude,
+        lon: longitude,
+        time: new Date(),
+      },
+    ],
+  });
+  return newTrip.id;
+};
+
+export const updateTripLocation = async (
+  tripId,
+  latitude,
+  longitude,
+  speed
+) => {
+  const tripRef = doc(db, "trips", tripId);
+  await updateDoc(tripRef, {
+    points: arrayUnion({
+      lat: latitude,
+      lon: longitude,
+      speed,
+      time: new Date(),
+    }),
+  });
+};
+
+export const endTrip = async (tripId, latitude, longitude) => {
+  const tripRef = doc(db, "trips", tripId);
+  await updateDoc(tripRef, {
+    endTime: new Date(),
+    active: false,
+    lastPosition: { lat: latitude, lon: longitude },
+  });
 };
