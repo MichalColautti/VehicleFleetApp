@@ -16,7 +16,8 @@ export const updateVechicleLocation = async (
   fleetId,
   latitude,
   longitude,
-  speed
+  speed,
+  vehicleId
 ) => {
   const membershipsSnap = await getDocs(
     query(
@@ -34,11 +35,13 @@ export const updateVechicleLocation = async (
       longitude,
       speed,
       updatedAt: new Date(),
+      vehicleId,
     });
 
     await addDoc(collection(db, "fleet_location_history"), {
       fleetId,
       userId,
+      vehicleId,
       latitude,
       longitude,
       speed,
