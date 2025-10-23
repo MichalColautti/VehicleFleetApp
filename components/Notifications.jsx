@@ -1,5 +1,9 @@
 import InviteItem from "@/components/InviteItem";
-import { acceptInvite, getPendingInvites, rejectInvite, } from "@/services/fleetMembershipService";
+import {
+  acceptInvite,
+  getPendingInvites,
+  rejectInvite,
+} from "@/services/fleetMembershipService";
 import { getAuth } from "firebase/auth";
 import { useEffect, useState } from "react";
 import {
@@ -11,7 +15,7 @@ import {
   View,
 } from "react-native";
 
-const Notifications = () => {
+const Notifications = ({fetchNotificationCount}) => {
   const [invites, setInvites] = useState([]);
   const auth = getAuth();
   const currentUser = auth.currentUser;
@@ -88,8 +92,14 @@ const Notifications = () => {
             renderItem={({ item }) => (
               <InviteItem
                 invite={item}
-                onAccept={() => handleAccept(item.membershipId)}
-                onReject={() => handleReject(item.membershipId)}
+                onAccept={() => {
+                  handleAccept(item.membershipId);
+                  fetchNotificationCount();
+                }}
+                onReject={() => {
+                  handleReject(item.membershipId);
+                  fetchNotificationCount();
+                }}
               />
             )}
             ListEmptyComponent={
@@ -111,7 +121,6 @@ const Notifications = () => {
 export default Notifications;
 
 const styles = StyleSheet.create({
-  
   notificationsContainer: {
     padding: 10,
     backgroundColor: "#eeeeeeff",
