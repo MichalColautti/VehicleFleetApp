@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   memberList: {
-    maxHeight: 140,
+    maxHeight: 185,
     borderLeftWidth: 1,
     borderColor: "#ddd",
   },

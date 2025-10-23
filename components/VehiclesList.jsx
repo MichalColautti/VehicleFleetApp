@@ -1,8 +1,14 @@
 import VehicleDetailsModal from "@/components/VehicleDetailsModal";
 import { useState } from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
-const VehicleList = ({ vehicles, handleDeleteVehicle }) => {
+const VehiclesList = ({ vehicles, handleDeleteVehicle }) => {
   const [vehicleModalVisible, setVehicleModalVisible] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
 
@@ -16,27 +22,26 @@ const VehicleList = ({ vehicles, handleDeleteVehicle }) => {
     setVehicleModalVisible(false);
   };
 
-  if (!vehicles?.length) {
-    return <Text style={styles.noVehicles}>No vehicles in this fleet.</Text>;
-  }
-
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Vehicles:</Text>
-      <ScrollView style={styles.vehicleList}>
-        {vehicles.map((vehicle) => (
-          <TouchableOpacity
-            key={vehicle.id}
-            style={styles.vehicleItem}
-            onPress={() => handleOpenVehicle(vehicle)}
-          >
-            <Text style={styles.vehicleText}>
-              {vehicle.name} ({vehicle.registrationNumber})
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
+      {vehicles?.length ? (
+        <ScrollView style={styles.vehicleList}>
+          {vehicles.map((vehicle) => (
+            <TouchableOpacity
+              key={vehicle.id}
+              style={styles.vehicleItem}
+              onPress={() => handleOpenVehicle(vehicle)}
+            >
+              <Text style={styles.vehicleText}>
+                {vehicle.name} ({vehicle.registrationNumber})
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      ) : (
+        <Text style={styles.noVehicles}>No vehicles in this fleet.</Text>
+      )}
       {selectedVehicle && (
         <VehicleDetailsModal
           vehicleModalVisible={vehicleModalVisible}
@@ -61,7 +66,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   vehicleList: {
-    maxHeight: 140,
+    maxHeight: 185,
     borderLeftWidth: 1,
     borderColor: "#ddd",
   },
@@ -85,4 +90,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default VehicleList;
+export default VehiclesList;
