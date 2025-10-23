@@ -1,4 +1,5 @@
 import InviteItem from "@/components/InviteItem";
+import { appEvents } from "@/events/appEvents";
 import {
   acceptInvite,
   getPendingInvites,
@@ -49,6 +50,7 @@ const Notifications = ({fetchNotificationCount}) => {
       await acceptInvite(membershipId);
       Alert.alert("Success", "You have been added to the fleet.");
       fetchPendingInvites();
+      appEvents.emit("fleetAccepted")
     } catch (error) {
       Alert.alert("Error", error.message);
     }

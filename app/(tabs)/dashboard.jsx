@@ -1,3 +1,4 @@
+import { appEvents } from "@/events/appEvents";
 import { getFleetsForUserWithPermission } from "@/services/fleetMembershipService";
 import { getFleetVehicles } from "@/services/fleetVechicleService";
 import {
@@ -57,6 +58,12 @@ const DashboardScreen = () => {
     };
 
     fetchFleets();
+
+    appEvents.on("fleetAccepted", fetchFleets);
+
+    return () => {
+      appEvents.removeListener("fleetAccepted", fetchFleets);
+    };
   }, [user]);
 
   useEffect(() => {
@@ -140,41 +147,45 @@ const DashboardScreen = () => {
       {loadingFleets ? (
         <ActivityIndicator size="small" color="#007bff" />
       ) : (
-        <DropDownPicker
-          open={fleetOpen}
-          value={selectedFleet}
-          items={fleets.map((fleet) => ({
-            label: fleet.name,
-            value: fleet.id,
-          }))}
-          setOpen={setFleetOpen}
-          setValue={setSelectedFleet}
-          placeholder="Choose a fleet"
-          style={styles.dropdown}
-          dropDownContainerStyle={styles.dropdownContainer}
-        />
+        <View style={{ zIndex: 2 }}>
+          <DropDownPicker
+            open={fleetOpen}
+            value={selectedFleet}
+            items={fleets.map((fleet) => ({
+              label: fleet.name,
+              value: fleet.id,
+            }))}
+            setOpen={setFleetOpen}
+            setValue={setSelectedFleet}
+            placeholder="Choose a fleet"
+            style={styles.dropdown}
+            dropDownContainerStyle={styles.dropdownContainer}
+          />
+        </View>
       )}
 
       <Text style={styles.label}>Select Vehicle:</Text>
       {loadingVehicles ? (
         <ActivityIndicator size="small" color="#007bff" />
       ) : (
-        <DropDownPicker
-          open={vehicleOpen}
-          value={selectedVehicle}
-          items={filteredVehicles.map((vehicle) => ({
-            label: `${vehicle.name} (${vehicle.registrationNumber})`,
-            value: vehicle.id,
-          }))}
-          setOpen={setVehicleOpen}
-          setValue={setSelectedVehicle}
-          placeholder={
-            selectedFleet ? "Choose a vehicle" : "Select fleet first"
-          }
-          disabled={!selectedFleet}
-          style={styles.dropdown}
-          dropDownContainerStyle={styles.dropdownContainer}
-        />
+        <View style={{ zIndex: 1 }}>
+          <DropDownPicker
+            open={vehicleOpen}
+            value={selectedVehicle}
+            items={filteredVehicles.map((vehicle) => ({
+              label: `${vehicle.name} (${vehicle.registrationNumber})`,
+              value: vehicle.id,
+            }))}
+            setOpen={setVehicleOpen}
+            setValue={setSelectedVehicle}
+            placeholder={
+              selectedFleet ? "Choose a vehicle" : "Select fleet first"
+            }
+            disabled={!selectedFleet}
+            style={styles.dropdown}
+            dropDownContainerStyle={styles.dropdownContainer}
+          />
+        </View>
       )}
 
       {selectedFleet && selectedVehicle && (
