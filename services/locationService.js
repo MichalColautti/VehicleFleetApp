@@ -11,20 +11,19 @@ import {
   where,
 } from "firebase/firestore";
 
-export const listenToFleetMembersLocations = (fleetId, callback) => {
-  const membershipsQuery = query(
-    collection(db, "fleet_memberships"),
+export const listenToActiveTrips = (fleetId, callback) => {
+  const tripQuery = query(
+    collection(db, "trips"),
     where("fleetId", "==", fleetId),
-    where("status", "==", "accepted")
+    where("active", "==", true)
   );
 
-  return onSnapshot(membershipsQuery, (snapshot) => {
-    const members = snapshot.docs.map((docSnap) => ({
-      membershipId: docSnap.id,
-      fleetId,
+  return onSnapshot(tripQuery, (snapshot) => {
+    const activeTrips = snapshot.docs.map((docSnap) => ({
+      tripId: docSnap.id,
       ...docSnap.data(),
     }));
-    callback(fleetId, members);
+    callback(activeTrips);
   });
 };
 

@@ -2,34 +2,62 @@ import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import MapView, { Callout, Marker, UrlTile } from "react-native-maps";
 
+import { getFleetById } from "@/services/fleetService";
+import { getVehicleById } from "@/services/fleetVechicleService";
+import { listenToActiveTrips } from "@/services/locationService";
 import { getUserEmailById } from "@/services/userService";
 
-const FleetMap = ({ mapRef, location, members }) => {
-  const [membersWithEmails, setMembersWithEmails] = useState([]);
+const FleetMap = ({ mapRef, location, fleetIds }) => {
+  const [activeTrips, setActiveTrips] = useState([]);
+  const [drivers, setDrivers] = useState([]);
 
   useEffect(() => {
-    const fetchEmails = async () => {
-      if (!members || members.length === 0) {
-        setMembersWithEmails([]);
-        return;
-      }
+    if (!fleetIds || fleetIds.length === 0) return;
 
-      const membersEmails = await Promise.all(
-        members.map(async (m) => {
-          const email = await getUserEmailById(m.userId);
-          return { ...m, email: email || "No email" };
+    let unsubscribers = [];
+    fleetIds.forEach((fleetId) => {
+      const unsub = listenToActiveTrips(fleetId, (fleetTrips) => {
+        console.log("Active trips for fleet:", fleetId, fleetTrips);
+        setActiveTrips((prev) => {
+          const others = prev.filter((t) => t.fleetId !== fleetId);
+          return [...others, ...fleetTrips];
+        });
+      });
+      unsubscribers.push(unsub);
+    });
+
+    return () => unsubscribers.forEach((unsub) => unsub && unsub());
+  }, [fleetIds]);
+
+  useEffect(() => {
+    const fetchTripDetails = async () => {
+      const result = await Promise.all(
+        activeTrips.map(async (trip) => {
+          const email = await getUserEmailById(trip.userId);
+          const vehicle = await getVehicleById(trip.vehicleId);
+          const fleet = await getFleetById(trip.fleetId);
+          const lastPoint = trip.points?.[trip.points.length - 1];
+          return {
+            ...trip,
+            email,
+            fleetName: fleet?.name || "Unknown Fleet",
+            vehicleName: vehicle?.name || "Unknown Vehicle",
+            registrationNumber: vehicle?.registrationNumber || "Unknown Registration",
+            lastLat: lastPoint?.lat,
+            lastLon: lastPoint?.lon,
+            speed: lastPoint?.speed || 0,
+          };
         })
       );
 
-      setMembersWithEmails(membersEmails);
+      setDrivers(result);
     };
 
-    fetchEmails();
-  }, [members]);
+    if (activeTrips.length > 0) fetchTripDetails();
+  }, [activeTrips]);
 
   return (
     <MapView
-      key={membersWithEmails.length}
       ref={mapRef}
       style={styles.map}
       initialRegion={{
@@ -45,27 +73,30 @@ const FleetMap = ({ mapRef, location, members }) => {
         zIndex={-1}
       />
 
-      {membersWithEmails.map((member) =>
-        member.latitude != null && member.longitude != null ? (
+      {drivers.map((driver) =>
+        driver.lastLat != null && driver.lastLon != null ? (
           <Marker
-            key={member.membershipId}
+            key={driver.tripId || `${driver.fleetId}-${driver.userId}`}
             coordinate={{
-              latitude: member.latitude,
-              longitude: member.longitude,
+              latitude: driver.lastLat,
+              longitude: driver.lastLon,
             }}
-            title={member.email || "No email error"}
+            title={driver.email || "No email error"}
             pinColor="red"
           >
             <Callout>
               <View style={styles.markerContainer}>
-                <Text>{member.email || "No email"}</Text>
+                <Text>{driver.email}</Text>
+                <Text>Fleet: {driver.fleetName}</Text>
                 <Text>
-                  Speed:
-                  {member.speed != null
-                    ? member.speed.toFixed(2) + " km/h"
+                  Vehicle: {driver.vehicleName} ({driver.registrationNumber})
+                </Text>
+                <Text>
+                  Speed:{" "}
+                  {driver.speed
+                    ? driver.speed.toFixed(2) + " km/h"
                     : "no record"}
                 </Text>
-                <Text>Status: {member.status || "no record"}</Text>
               </View>
             </Callout>
           </Marker>
@@ -80,9 +111,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   markerContainer: {
-    width: 120,
+    width: 170,
     borderRadius: 20,
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "center",
   },
 });
