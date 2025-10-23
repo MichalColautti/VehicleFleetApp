@@ -5,13 +5,17 @@ import { getAuth } from "firebase/auth";
 import { useEffect, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 
-import { getFleetMembers, getFleetsForUserWithPermission } from "@/services/fleetMembershipService";
-import { listenToFleetMembersLocations } from "@/services/locationService";
+import {
+  getFleetsForUserWithPermission
+} from "@/services/fleetMembershipService";
 
 const MapScreen = () => {
   const [location, setLocation] = useState(null);
-  const [members, setMembers] = useState([]);
+  const [fleetIds, setFleetIds] = useState([]);
+
   const mapRef = useRef(null);
+  const auth = getAuth();
+  const user = auth.currentUser;
 
   useEffect(() => {
     (async () => {
@@ -42,48 +46,18 @@ const MapScreen = () => {
     })();
   }, []);
 
- useEffect(() => {
-  const auth = getAuth();
-  const user = auth.currentUser;
-  if (!user) return;
-
-  const setupFleetListeners = async () => {
-    const fleets = await getFleetsForUserWithPermission(user.uid, "view_drivers_position");
-
-    let initialMembers = [];
-    for (const fleet of fleets) {
-      const membersSnapshot = await getFleetMembers(fleet.id); 
-      initialMembers = [...initialMembers, ...membersSnapshot];
+  useEffect(() => {
+    const fetchFleetIds = async () => {
+      const fleets = await getFleetsForUserWithPermission(user.uid, "view_drivers_position")
+      setFleetIds(fleets.map((f) => f.id));
     }
-    setMembers(initialMembers);
 
-    const unsubscribes = fleets.map((fleet) =>
-      listenToFleetMembersLocations(fleet.id, (fleetId, fleetMembers) => {
-        setMembers((prevMembers) => {
-          // Remove old members of this fleet
-          const others = prevMembers.filter((m) => m.fleetId !== fleetId);
-
-          // Add updated members of this fleet
-          const updated = fleetMembers.map((m) => ({
-            membershipId: m.membershipId || m.id || `${fleetId}-${m.userId}`,
-            ...m,
-            fleetId,
-          }));
-          return [...others, ...updated];
-        });
-      })
-    );
-
-    return () => unsubscribes.forEach((u) => u && u());
-  };
-
-  setupFleetListeners();
-}, []);
-
+    fetchFleetIds();
+  }, [user]);
 
   return (
     <View style={styles.container}>
-      <FleetMap mapRef={mapRef} location={location} members={members} />
+      <FleetMap mapRef={mapRef} location={location} fleetIds={fleetIds} />
       <StatusBar style="auto" />
     </View>
   );

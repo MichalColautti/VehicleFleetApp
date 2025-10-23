@@ -1,26 +1,29 @@
 import { db } from "@/config/firebaseConfig";
 import {
-    collection,
-    getDocs,
-    onSnapshot,
-    query,
-    where,
+  addDoc,
+  arrayUnion,
+  collection,
+  doc,
+  getDocs,
+  onSnapshot,
+  query,
+  updateDoc,
+  where,
 } from "firebase/firestore";
 
-export const listenToFleetMembersLocations = (fleetId, callback) => {
-  const membershipsQuery = query(
-    collection(db, "fleet_memberships"),
+export const listenToActiveTrips = (fleetId, callback) => {
+  const tripQuery = query(
+    collection(db, "trips"),
     where("fleetId", "==", fleetId),
-    where("status", "==", "accepted")
+    where("active", "==", true)
   );
 
-  return onSnapshot(membershipsQuery, (snapshot) => {
-    const members = snapshot.docs.map((docSnap) => ({
-      membershipId: docSnap.id,
-      fleetId,
+  return onSnapshot(tripQuery, (snapshot) => {
+    const activeTrips = snapshot.docs.map((docSnap) => ({
+      tripId: docSnap.id,
       ...docSnap.data(),
     }));
-    callback(fleetId, members);
+    callback(activeTrips);
   });
 };
 
@@ -77,4 +80,56 @@ export const getSpeedLimit = async (lat, lon) => {
     console.error("Overpass error:", err);
     return undefined;
   }
+};
+
+export const startTrip = async (
+  userId,
+  fleetId,
+  vehicleId,
+  latitude,
+  longitude
+) => {
+  const tripsRef = collection(db, "trips");
+  const newTrip = await addDoc(tripsRef, {
+    userId,
+    fleetId,
+    vehicleId,
+    startTime: new Date(),
+    endTime: null,
+    active: true,
+    points: [
+      {
+        lat: latitude,
+        lon: longitude,
+        time: new Date(),
+      },
+    ],
+  });
+  return newTrip.id;
+};
+
+export const updateTripLocation = async (
+  tripId,
+  latitude,
+  longitude,
+  speed
+) => {
+  const tripRef = doc(db, "trips", tripId);
+  await updateDoc(tripRef, {
+    points: arrayUnion({
+      lat: latitude,
+      lon: longitude,
+      speed,
+      time: new Date(),
+    }),
+  });
+};
+
+export const endTrip = async (tripId, latitude, longitude) => {
+  const tripRef = doc(db, "trips", tripId);
+  await updateDoc(tripRef, {
+    endTime: new Date(),
+    active: false,
+    lastPosition: { lat: latitude, lon: longitude },
+  });
 };

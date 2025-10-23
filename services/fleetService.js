@@ -16,7 +16,7 @@ export const createFleet = async (ownerId, fleetName) => {
     name: fleetName,
     ownerId,
   });
-
+ 
   const membershipsRef = collection(db, "fleet_memberships");
   await addDoc(membershipsRef, {
     fleetId: newFleetRef.id,
@@ -91,4 +91,12 @@ export const getUserFleets = async (userId) => {
   }
 
   return fleets;
+};
+
+export const getFleetById = async (fleetId) => {
+  const fleetRef = doc(db, "fleets", fleetId);
+  const fleetsSnap = await getDoc(fleetRef);
+  return fleetsSnap.exists()
+    ? { id: fleetsSnap.id, ...fleetsSnap.data() }
+    : null;
 };

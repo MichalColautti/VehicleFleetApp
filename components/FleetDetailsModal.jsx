@@ -1,7 +1,9 @@
 import InviteNewMemberModal from "@/components/InviteNewMemberModal";
 import MembersList from "@/components/MembersList";
+import VehicleList from "@/components/VehiclesList";
 import { useState } from "react";
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import AddVehicleModal from "./AddVehicleModal";
 
 const FleetDetailsModal = ({
   modalVisible,
@@ -11,8 +13,11 @@ const FleetDetailsModal = ({
   setInviteInput,
   handleInvite,
   handleDeleteMember,
+  handleAddVehicle,
+  handleDeleteVehicle,
 }) => {
   const [inviteModalVisible, setInviteModalVisible] = useState(false);
+  const [addVehicleModalVisible, setAddVehicleModalVisible] = useState(false);
 
   return (
     <View>
@@ -25,6 +30,15 @@ const FleetDetailsModal = ({
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>{selectedFleet?.name}</Text>
+
+            <VehicleList vehicles={selectedFleet?.vehicles} handleDeleteVehicle={handleDeleteVehicle}/>
+
+            <TouchableOpacity
+              style={styles.inviteButton}
+              onPress={() => setAddVehicleModalVisible(true)}
+            >
+              <Text style={styles.inviteButtonText}>Add new vehicle</Text>
+            </TouchableOpacity>
 
             <MembersList
               members={selectedFleet?.members}
@@ -44,6 +58,13 @@ const FleetDetailsModal = ({
               inviteInput={inviteInput}
               setInviteInput={setInviteInput}
               handleInvite={handleInvite}
+            />
+
+            <AddVehicleModal
+              vehicleModalVisible={addVehicleModalVisible}
+              setVehicleModalVisible={setAddVehicleModalVisible}
+              handleAddVehicle={handleAddVehicle}
+              fleetId={selectedFleet?.id}
             />
 
             <TouchableOpacity

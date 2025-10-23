@@ -12,15 +12,14 @@ const NotificationsButton = () => {
   const auth = getAuth();
   const currentUser = auth.currentUser;
 
-  useEffect(() => {
+  const fetchNotificationCount = async () => {
     if (!currentUser?.uid) return;
+    const invites = await getPendingInvites(currentUser.uid);
+    setCount(invites.length);
+  };
 
-    const fetchCount = async () => {
-      const invites = await getPendingInvites(currentUser.uid);
-      setCount(invites.length);
-    };
-
-    fetchCount();
+  useEffect(() => {
+    fetchNotificationCount();
   }, [currentUser]);
 
   return (
@@ -45,8 +44,14 @@ const NotificationsButton = () => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Notifications />
-            <TouchableOpacity style={styles.closeButton} onPress={() => setVisible(false)}>
+            <Notifications fetchNotificationCount={fetchNotificationCount}/>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => {
+                setVisible(false);
+                fetchNotificationCount();
+              }}
+            >
               <Text style={styles.closeText}>Close</Text>
             </TouchableOpacity>
           </View>
