@@ -7,6 +7,7 @@ const MemberDetailsModal = ({
   handleCloseMember,
   selectedMember,
   handleDeleteMember,
+  handleDeleteInvite,
 }) => {
   const [roleName, setRoleName] = useState("");
 
@@ -25,7 +26,11 @@ const MemberDetailsModal = ({
   const handleDelete = async () => {
     if (!selectedMember) return;
 
-    await handleDeleteMember(selectedMember);
+    if (selectedMember.status === "pending") {
+      await handleDeleteInvite(selectedMember.notificationId);
+    } else {
+      await handleDeleteMember(selectedMember);
+    }
     handleCloseMember();
   };
 

@@ -6,6 +6,7 @@ import {
   deleteFleetMember,
   getFleetMembersIncludingPending,
   inviteUserToFleet,
+  rejectInvite,
 } from "@/services/fleetMembershipService";
 import { getFleetById } from "@/services/fleetService";
 import {
@@ -130,6 +131,17 @@ const FleetDetailsScreen = () => {
     );
   };
 
+  const handleDeleteInvite = async (notificationId) => {
+  if (!notificationId) return;
+  try {
+    await rejectInvite(notificationId); 
+    Alert.alert("Success", "Invitation cancelled");
+    fetchFleetData();
+  } catch (error) {
+    Alert.alert("Error", error.message);
+  }
+};
+
   const handleAddVehicle = async (fleetId, vehicleData) => {
     try {
       //console.log("Adding vehicle:", fleetId, vehicleData);
@@ -183,6 +195,7 @@ const FleetDetailsScreen = () => {
       <MembersList
         members={members}
         handleDeleteMember={handleDeleteMember}
+        handleDeleteInvite={handleDeleteInvite}
       />
 
       <TouchableOpacity

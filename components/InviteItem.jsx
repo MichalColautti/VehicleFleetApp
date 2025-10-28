@@ -4,19 +4,18 @@ const InviteItem = ({ invite, onAccept, onReject }) => {
   return (
     <View style={styles.inviteCard}>
       <Text style={styles.inviteText}>
-        You have been invited to{" "}
-        <Text style={{ fontWeight: "bold" }}>{invite.fleetName}</Text>
+        {invite.message}
       </Text>
       <View style={styles.buttonRow}>
         <TouchableOpacity
           style={styles.acceptButton}
-          onPress={() => onAccept(invite.fleetId)}
+          onPress={() => onAccept(invite)}
         >
           <Text style={styles.buttonText}>Accept</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.rejectButton}
-          onPress={() => onReject(invite.fleetId)}
+          onPress={() => onReject(invite)}
         >
           <Text style={styles.buttonText}>Reject</Text>
         </TouchableOpacity>
