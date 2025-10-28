@@ -27,7 +27,6 @@ export const hasPermissions = async (userId, fleetId, permission) => {
       collection(db, "fleet_memberships"),
       where("userId", "==", userId),
       where("fleetId", "==", fleetId),
-      where("status", "==", "accepted")
     )
   );
 

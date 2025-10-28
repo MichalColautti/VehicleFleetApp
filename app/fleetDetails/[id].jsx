@@ -14,13 +14,14 @@ import {
   deleteVehicle,
   getFleetVehicles,
 } from "@/services/fleetVechicleService";
+import { hasPermissions } from "@/services/roleService";
 import { getUserIdByEmail } from "@/services/userService";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { getAuth } from "firebase/auth";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -30,6 +31,8 @@ import {
 const FleetDetailsScreen = () => {
   const { id } = useLocalSearchParams();
   const router = useRouter();
+  const auth = getAuth();
+  const currentUser = auth.currentUser;
 
   const [loading, setLoading] = useState(false);
   const [fleet, setFleet] = useState(null);
@@ -40,6 +43,9 @@ const FleetDetailsScreen = () => {
 
   const [inviteModalVisible, setInviteModalVisible] = useState(false);
   const [addVehicleModalVisible, setAddVehicleModalVisible] = useState(false);
+
+  const [canAddVehicle, setCanAddVehicle] = useState(false);
+  const [canInviteMember, setcanInviteMember] = useState(false);
 
   const fetchFleetData = async () => {
     try {
@@ -132,15 +138,15 @@ const FleetDetailsScreen = () => {
   };
 
   const handleDeleteInvite = async (notificationId) => {
-  if (!notificationId) return;
-  try {
-    await rejectInvite(notificationId); 
-    Alert.alert("Success", "Invitation cancelled");
-    fetchFleetData();
-  } catch (error) {
-    Alert.alert("Error", error.message);
-  }
-};
+    if (!notificationId) return;
+    try {
+      await rejectInvite(notificationId);
+      Alert.alert("Success", "Invitation cancelled");
+      fetchFleetData();
+    } catch (error) {
+      Alert.alert("Error", error.message);
+    }
+  };
 
   const handleAddVehicle = async (fleetId, vehicleData) => {
     try {
@@ -168,6 +174,34 @@ const FleetDetailsScreen = () => {
     }
   };
 
+  useEffect(() => {
+    const checkPermission = async () => {
+      if (fleet?.id && currentUser?.uid) {
+        const hasPermission = await hasPermissions(
+          currentUser.uid,
+          fleet.id,
+          "add_vehicle"
+        );
+        setCanAddVehicle(hasPermission);
+      }
+    };
+    checkPermission();
+  }, [fleet, currentUser]);
+
+  useEffect(() => {
+    const checkPermission = async () => {
+      if (fleet?.id && currentUser?.uid) {
+        const hasPermission = await hasPermissions(
+          currentUser.uid,
+          fleet.id,
+          "invite_member"
+        );
+        setcanInviteMember(hasPermission);
+      }
+    };
+    checkPermission();
+  }, [fleet, currentUser]);
+
   if (loading) {
     return (
       <View style={styles.loading}>
@@ -177,33 +211,38 @@ const FleetDetailsScreen = () => {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <View style={styles.container}>
       <Text style={styles.title}>{fleet?.name}</Text>
+
+      <MembersList
+        members={members}
+        handleDeleteMember={handleDeleteMember}
+        handleDeleteInvite={handleDeleteInvite}
+        fleetId={fleet}
+      />
+
+      {canInviteMember && (
+        <TouchableOpacity
+          style={styles.inviteButton}
+          onPress={() => setInviteModalVisible(true)}
+        >
+          <Text style={styles.inviteButtonText}>Invite new member</Text>
+        </TouchableOpacity>
+      )}
 
       <VehiclesList
         vehicles={vehicles}
         handleDeleteVehicle={handleDeleteVehicle}
       />
 
-      <TouchableOpacity
-        style={styles.inviteButton}
-        onPress={() => setAddVehicleModalVisible(true)}
-      >
-        <Text style={styles.inviteButtonText}>Add new vehicle</Text>
-      </TouchableOpacity>
-
-      <MembersList
-        members={members}
-        handleDeleteMember={handleDeleteMember}
-        handleDeleteInvite={handleDeleteInvite}
-      />
-
-      <TouchableOpacity
-        style={styles.inviteButton}
-        onPress={() => setInviteModalVisible(true)}
-      >
-        <Text style={styles.inviteButtonText}>Invite new member</Text>
-      </TouchableOpacity>
+      {canAddVehicle && (
+        <TouchableOpacity
+          style={styles.inviteButton}
+          onPress={() => setAddVehicleModalVisible(true)}
+        >
+          <Text style={styles.inviteButtonText}>Add new vehicle</Text>
+        </TouchableOpacity>
+      )}
 
       <InviteNewMemberModal
         inviteModalVisible={inviteModalVisible}
@@ -219,8 +258,7 @@ const FleetDetailsScreen = () => {
         handleAddVehicle={handleAddVehicle}
         fleetId={fleet?.id}
       />
-
-    </ScrollView>
+    </View>
   );
 };
 
@@ -232,12 +270,12 @@ const styles = StyleSheet.create({
   },
   container: {
     padding: 20,
-  }, 
+  },
   title: {
     fontSize: 20,
     fontWeight: "bold",
     marginBottom: 15,
-    textAlign: "center"
+    textAlign: "center",
   },
   inviteButton: {
     alignItems: "center",

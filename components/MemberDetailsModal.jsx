@@ -1,6 +1,8 @@
-import { getRoleById } from "@/services/roleService";
+import { getRoleById, hasPermissions } from "@/services/roleService";
+import { getAuth } from "firebase/auth";
 import { useEffect, useState } from "react";
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+
 
 const MemberDetailsModal = ({
   memberModalVisible,
@@ -8,8 +10,14 @@ const MemberDetailsModal = ({
   selectedMember,
   handleDeleteMember,
   handleDeleteInvite,
+  fleet,
 }) => {
   const [roleName, setRoleName] = useState("");
+  const [canDelete, setCanDelete] = useState(false);
+
+  
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
 
   useEffect(() => {
     const fetchRole = async () => {
@@ -34,6 +42,13 @@ const MemberDetailsModal = ({
     handleCloseMember();
   };
 
+  useEffect(() => {
+  if (currentUser?.id && fleet?.id && selectedMember) {
+    hasPermissions(currentUser.uid, fleet?.id, "delete_member")
+      .then(setCanDelete);
+  }
+}, [selectedMember, currentUser, fleet]);
+
   const deleteLabel = selectedMember?.status === "pending" ? "Delete Invite" : "Delete Member";
 
   return (
@@ -57,7 +72,7 @@ const MemberDetailsModal = ({
               </Text>
             </>
           )}
-          {selectedMember && selectedMember.roleId !== "owner" && (
+          {selectedMember && selectedMember.roleId !== "owner" && canDelete && (
             <TouchableOpacity
               style={styles.deleteButton}
               onPress={handleDelete}

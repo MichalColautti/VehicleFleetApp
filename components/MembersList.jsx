@@ -8,7 +8,7 @@ import {
   View,
 } from "react-native";
 
-const MembersList = ({ members, handleDeleteMember, handleDeleteInvite }) => {
+const MembersList = ({ members, handleDeleteMember, handleDeleteInvite, fleet }) => {
   const [memberModalVisible, setMemberModalVisible] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
 
@@ -47,6 +47,7 @@ const MembersList = ({ members, handleDeleteMember, handleDeleteInvite }) => {
         selectedMember={selectedMember}
         handleDeleteMember={handleDeleteMember}
         handleDeleteInvite={handleDeleteInvite}
+        fleet={fleet}
       />
     </View>
   );
