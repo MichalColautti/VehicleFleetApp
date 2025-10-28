@@ -3,7 +3,6 @@ import { getAuth } from "firebase/auth";
 import { useEffect, useState } from "react";
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
-
 const MemberDetailsModal = ({
   memberModalVisible,
   handleCloseMember,
@@ -12,12 +11,12 @@ const MemberDetailsModal = ({
   handleDeleteInvite,
   fleet,
 }) => {
-  const [roleName, setRoleName] = useState("");
-  const [canDelete, setCanDelete] = useState(false);
+  const auth = getAuth();
+  const currentUser = auth.currentUser;
 
-  
-    const auth = getAuth();
-    const currentUser = auth.currentUser;
+  const [roleName, setRoleName] = useState("");
+  const [canDeleteMember, setCanDeleteMember] = useState(false);
+  const [isCheckingPermission, setIsCheckingPermission] = useState(true);
 
   useEffect(() => {
     const fetchRole = async () => {
@@ -43,17 +42,26 @@ const MemberDetailsModal = ({
   };
 
   useEffect(() => {
-  if (currentUser?.id && fleet?.id && selectedMember) {
-    hasPermissions(currentUser.uid, fleet?.id, "delete_member")
-      .then(setCanDelete);
-  }
-}, [selectedMember, currentUser, fleet]);
+    const checkPermission = async () => {
+      if (fleet?.id && currentUser?.uid && selectedMember) {
+        const hasPermission = await hasPermissions(
+          currentUser.uid,
+          fleet.id,
+          "delete_member"
+        );
+        setCanDeleteMember(hasPermission);
+        setIsCheckingPermission(false);
+      }
+    };
+    checkPermission();
+  }, [fleet, currentUser, selectedMember]);
 
-  const deleteLabel = selectedMember?.status === "pending" ? "Delete Invite" : "Delete Member";
+  const deleteLabel =
+    selectedMember?.status === "pending" ? "Delete Invite" : "Delete Member";
 
   return (
     <Modal
-      visible={memberModalVisible}
+      visible={memberModalVisible && !isCheckingPermission}
       animationType="slide"
       transparent={true}
       onRequestClose={handleCloseMember}
@@ -72,14 +80,16 @@ const MemberDetailsModal = ({
               </Text>
             </>
           )}
-          {selectedMember && selectedMember.roleId !== "owner" && canDelete && (
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={handleDelete}
-            >
-              <Text style={styles.deleteButtonText}>{deleteLabel}</Text>
-            </TouchableOpacity>
-          )}
+          {selectedMember &&
+            selectedMember.roleId !== "owner" &&
+            canDeleteMember && (
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={handleDelete}
+              >
+                <Text style={styles.deleteButtonText}>{deleteLabel}</Text>
+              </TouchableOpacity>
+            )}
 
           <TouchableOpacity
             style={styles.cancelButton}

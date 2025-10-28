@@ -25,7 +25,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 
 const FleetDetailsScreen = () => {
@@ -45,7 +45,10 @@ const FleetDetailsScreen = () => {
   const [addVehicleModalVisible, setAddVehicleModalVisible] = useState(false);
 
   const [canAddVehicle, setCanAddVehicle] = useState(false);
+  const [isCheckingAddVehiclePermission, setIsCheckingAddVehiclePermission] = useState(true);
+
   const [canInviteMember, setcanInviteMember] = useState(false);
+  const [isCheckingInviteMemberPermission, setIsCheckingInviteMemberPermission] = useState(true);
 
   const fetchFleetData = async () => {
     try {
@@ -183,6 +186,7 @@ const FleetDetailsScreen = () => {
           "add_vehicle"
         );
         setCanAddVehicle(hasPermission);
+        setIsCheckingAddVehiclePermission(false);
       }
     };
     checkPermission();
@@ -197,12 +201,13 @@ const FleetDetailsScreen = () => {
           "invite_member"
         );
         setcanInviteMember(hasPermission);
+        setIsCheckingInviteMemberPermission(false);
       }
     };
     checkPermission();
   }, [fleet, currentUser]);
 
-  if (loading) {
+  if (loading || isCheckingAddVehiclePermission || isCheckingInviteMemberPermission) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator size="large" color="#007bff" />
@@ -218,7 +223,7 @@ const FleetDetailsScreen = () => {
         members={members}
         handleDeleteMember={handleDeleteMember}
         handleDeleteInvite={handleDeleteInvite}
-        fleetId={fleet}
+        fleet={fleet}
       />
 
       {canInviteMember && (
@@ -233,6 +238,7 @@ const FleetDetailsScreen = () => {
       <VehiclesList
         vehicles={vehicles}
         handleDeleteVehicle={handleDeleteVehicle}
+        fleet={fleet}
       />
 
       {canAddVehicle && (
@@ -256,7 +262,6 @@ const FleetDetailsScreen = () => {
         vehicleModalVisible={addVehicleModalVisible}
         setVehicleModalVisible={setAddVehicleModalVisible}
         handleAddVehicle={handleAddVehicle}
-        fleetId={fleet?.id}
       />
     </View>
   );

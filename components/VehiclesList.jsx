@@ -8,7 +8,7 @@ import {
   View,
 } from "react-native";
 
-const VehiclesList = ({ vehicles, handleDeleteVehicle }) => {
+const VehiclesList = ({ vehicles, handleDeleteVehicle, fleet }) => {
   const [vehicleModalVisible, setVehicleModalVisible] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
 
@@ -48,6 +48,7 @@ const VehiclesList = ({ vehicles, handleDeleteVehicle }) => {
           handleCloseVehicle={handleCloseVehicle}
           selectedVehicle={selectedVehicle}
           handleDeleteVehicle={handleDeleteVehicle}
+          fleet={fleet}
         />
       )}
     </View>

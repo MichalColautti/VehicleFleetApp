@@ -16,7 +16,7 @@ import {
   createFleet,
   deleteFleet,
   getJoinedFleets,
-  getOwnedFleets
+  getOwnedFleets,
 } from "@/services/fleetService";
 import { getFleetVehicles } from "@/services/fleetVechicleService";
 import { useRouter } from "expo-router";
@@ -47,7 +47,7 @@ const FleetManagementScreen = () => {
       const ownedFleetsWithData = await Promise.all(
         owned.map(async (fleet) => {
           const members = await getFleetMembersIncludingPending(fleet.id);
-          const vehicles = await getFleetVehicles(fleet.id); 
+          const vehicles = await getFleetVehicles(fleet.id);
           return { ...fleet, members, vehicles };
         })
       );
@@ -61,7 +61,6 @@ const FleetManagementScreen = () => {
         })
       );
       setJoinedFleets(joinedFleetsWithData);
-
     } catch (error) {
       Alert.alert("Error", error.message);
     } finally {
