@@ -8,17 +8,10 @@ const FleetList = ({
   handleOpenFleet,
   handleDeleteFleet,
   refreshing,
-  handleRefresh
+  handleRefresh,
 }) => {
-  return (
-    <SwipeListView
-      style={styles.container}
-      data={fleets}
-      keyExtractor={(item) => item.id}
-      renderItem={({ item }) => (
-        <FleetItem handleOpenFleet={handleOpenFleet} item={item} />
-      )}
-      renderHiddenItem={({ item }) => (
+  const renderHiddenItem = handleDeleteFleet
+    ? ({ item }) => (
         <View style={styles.fleetItemContainer}>
           <TouchableOpacity
             style={styles.deleteButton}
@@ -27,7 +20,17 @@ const FleetList = ({
             <DeleteIcon width={24} height={24} />
           </TouchableOpacity>
         </View>
+      )
+    : undefined;
+  return (
+    <SwipeListView
+      style={styles.container}
+      data={fleets}
+      keyExtractor={(item) => item.id}
+      renderItem={({ item }) => (
+        <FleetItem handleOpenFleet={handleOpenFleet} item={item} />
       )}
+      renderHiddenItem={renderHiddenItem}
       rightOpenValue={-70}
       disableRightSwipe
       stopRightSwipe={-70}

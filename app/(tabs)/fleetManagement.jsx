@@ -163,7 +163,7 @@ const FleetManagementScreen = () => {
         <FleetList
           fleets={joinedFleets}
           handleOpenFleet={handleOpenFleet}
-          handleDeleteFleet={handleDeleteFleet}
+          handleDeleteFleet={null}
           refreshing={refreshing}
           handleRefresh={handleRefresh}
         />
