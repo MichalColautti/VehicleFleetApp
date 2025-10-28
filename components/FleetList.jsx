@@ -12,6 +12,7 @@ const FleetList = ({
 }) => {
   return (
     <SwipeListView
+      style={styles.container}
       data={fleets}
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => (
@@ -40,6 +41,9 @@ const FleetList = ({
 };
 
 const styles = StyleSheet.create({
+  container: {
+    maxHeight: 240,
+  },
   noFleetsText: {
     textAlign: "center",
     fontSize: 16,
@@ -49,14 +53,13 @@ const styles = StyleSheet.create({
   fleetItemContainer: {
     alignItems: "center",
     backgroundColor: "#fafafa",
-    flex: 1,
     flexDirection: "row",
     justifyContent: "flex-end",
   },
   deleteButton: {
     backgroundColor: "red",
     width: 70,
-    height: "100%",
+    height: 80,
     justifyContent: "center",
     alignItems: "center",
   },

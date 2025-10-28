@@ -11,29 +11,25 @@ import {
   View,
 } from "react-native";
 
-import {
-  getFleetMembersIncludingPending
-} from "@/services/fleetMembershipService";
+import { getFleetMembersIncludingPending } from "@/services/fleetMembershipService";
 import {
   createFleet,
   deleteFleet,
-  getOwnedFleets,
+  getJoinedFleets,
+  getOwnedFleets
 } from "@/services/fleetService";
-import {
-  getFleetVehicles
-} from "@/services/fleetVechicleService";
+import { getFleetVehicles } from "@/services/fleetVechicleService";
 import { useRouter } from "expo-router";
 
 const FleetManagementScreen = () => {
   const [fleetName, setFleetName] = useState("");
-  const [fleets, setFleets] = useState([]);
-  const [selectedFleet, setSelectedFleet] = useState(null);
-  const [inviteInput, setInviteInput] = useState({ email: "", roleId: "" });
-  const [modalVisible, setModalVisible] = useState(false);
+  const [ownedFleets, setOwnedFleets] = useState([]);
+  const [joinedFleets, setJoinedFleets] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
   const auth = getAuth();
   const currentUser = auth.currentUser;
-  const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -45,28 +41,29 @@ const FleetManagementScreen = () => {
   const fetchFleets = async () => {
     setLoading(true);
     try {
-      const userFleets = await getOwnedFleets(currentUser.uid);
+      const owned = await getOwnedFleets(currentUser.uid);
+      const joined = await getJoinedFleets(currentUser.uid);
 
-      const fleetsWithMembers = await Promise.all(
-        userFleets.map(async (fleet) => {
+      const ownedFleetsWithData = await Promise.all(
+        owned.map(async (fleet) => {
           const members = await getFleetMembersIncludingPending(fleet.id);
-          return { ...fleet, members };
+          const vehicles = await getFleetVehicles(fleet.id); 
+          return { ...fleet, members, vehicles };
         })
       );
-      setFleets(fleetsWithMembers);
+      setOwnedFleets(ownedFleetsWithData);
 
-      const fleetsWithVehicles = await Promise.all(
-        fleetsWithMembers.map(async (fleet) => {
+      const joinedFleetsWithData = await Promise.all(
+        joined.map(async (fleet) => {
+          const members = await getFleetMembersIncludingPending(fleet.id);
           const vehicles = await getFleetVehicles(fleet.id);
-          return { ...fleet, vehicles };
+          return { ...fleet, members, vehicles };
         })
       );
-      setFleets(fleetsWithVehicles);
+      setJoinedFleets(joinedFleetsWithData);
 
-      return fleetsWithVehicles;
     } catch (error) {
       Alert.alert("Error", error.message);
-      return [];
     } finally {
       setLoading(false);
     }
@@ -78,7 +75,7 @@ const FleetManagementScreen = () => {
       return;
     }
 
-    if (fleets.find((f) => f.name === fleetName)) {
+    if (ownedFleets.find((f) => f.name === fleetName)) {
       Alert.alert("Error", "Fleet with that name already exists");
       return;
     }
@@ -126,8 +123,8 @@ const FleetManagementScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={{ padding: 16 }}>
+    <View>
+      <View style={{ marginHorizontal: 16 }}>
         <Text style={styles.title}>Create Fleet</Text>
 
         <TextInput
@@ -143,15 +140,28 @@ const FleetManagementScreen = () => {
         >
           <Text style={styles.createFleetButtonText}>Create fleet</Text>
         </TouchableOpacity>
-
-        <Text style={styles.title}>Your Fleets</Text>
       </View>
+
+      <Text style={styles.title}>Your Fleets</Text>
 
       {loading ? (
         <ActivityIndicator size="large" color="#007bff" style={styles.loader} />
       ) : (
         <FleetList
-          fleets={fleets}
+          fleets={ownedFleets}
+          handleOpenFleet={handleOpenFleet}
+          handleDeleteFleet={handleDeleteFleet}
+          refreshing={refreshing}
+          handleRefresh={handleRefresh}
+        />
+      )}
+
+      <Text style={styles.title}>Joined</Text>
+      {loading ? (
+        <ActivityIndicator size="large" color="#007bff" style={styles.loader} />
+      ) : (
+        <FleetList
+          fleets={joinedFleets}
           handleOpenFleet={handleOpenFleet}
           handleDeleteFleet={handleDeleteFleet}
           refreshing={refreshing}
@@ -163,13 +173,10 @@ const FleetManagementScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
   title: {
     fontSize: 22,
     fontWeight: "bold",
-    marginBottom: 8,
+    marginBottom: 16,
     marginTop: 16,
     textAlign: "center",
   },
@@ -181,7 +188,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   loader: {
-    marginTop: 40,
+    padding: 20,
     alignSelf: "center",
   },
   createFleetButton: {
