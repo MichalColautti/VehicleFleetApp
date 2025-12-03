@@ -47,7 +47,7 @@ const FleetDetailsScreen = () => {
   const [canAddVehicle, setCanAddVehicle] = useState(false);
   const [isCheckingAddVehiclePermission, setIsCheckingAddVehiclePermission] = useState(true);
 
-  const [canInviteMember, setcanInviteMember] = useState(false);
+  const [canInviteMember, setCanInviteMember] = useState(false);
   const [isCheckingInviteMemberPermission, setIsCheckingInviteMemberPermission] = useState(true);
 
   const fetchFleetData = async () => {
@@ -200,7 +200,7 @@ const FleetDetailsScreen = () => {
           fleet.id,
           "invite_member"
         );
-        setcanInviteMember(hasPermission);
+        setCanInviteMember(hasPermission);
         setIsCheckingInviteMemberPermission(false);
       }
     };
@@ -270,7 +270,7 @@ const FleetDetailsScreen = () => {
 const styles = StyleSheet.create({
   loading: {
     flex: 1,
-    allignItems: "center",
+    alignItems: "center",
     justifyContent: "center",
   },
   container: {

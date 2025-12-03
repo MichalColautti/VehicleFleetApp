@@ -1,4 +1,5 @@
 import { getRoleById, hasPermissions } from "@/services/roleService";
+import { useRouter } from "expo-router";
 import { getAuth } from "firebase/auth";
 import { useEffect, useState } from "react";
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -13,6 +14,7 @@ const MemberDetailsModal = ({
 }) => {
   const auth = getAuth();
   const currentUser = auth.currentUser;
+  const router = useRouter();
 
   const [roleName, setRoleName] = useState("");
   const [canDeleteMember, setCanDeleteMember] = useState(false);
@@ -59,6 +61,19 @@ const MemberDetailsModal = ({
   const deleteLabel =
     selectedMember?.status === "pending" ? "Delete Invite" : "Delete Member";
 
+  const handleShowHistory = () => {
+    if (!selectedMember) return;
+    handleCloseMember();
+    router.push({
+      pathname: "/trip/tripHistoryList",
+      params: {
+        userId: selectedMember.userId,
+        userEmail: selectedMember.email,
+        fleetId: fleet.id,
+      },
+    });
+  };
+
   return (
     <Modal
       visible={memberModalVisible && !isCheckingPermission}
@@ -80,6 +95,18 @@ const MemberDetailsModal = ({
               </Text>
             </>
           )}
+
+          {selectedMember && selectedMember.status === "accepted" && (
+            <TouchableOpacity
+              style={styles.historyButton}
+              onPress={handleShowHistory}
+            >
+              <Text style={styles.historyButtonText}>
+                Pokaż historię przejazdów
+              </Text>
+            </TouchableOpacity>
+          )}
+
           {selectedMember &&
             selectedMember.roleId !== "owner" &&
             canDeleteMember && (

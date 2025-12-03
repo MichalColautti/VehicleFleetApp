@@ -6,6 +6,7 @@ import {
   doc,
   getDocs,
   onSnapshot,
+  orderBy,
   query,
   updateDoc,
   where,
@@ -132,4 +133,19 @@ export const endTrip = async (tripId, latitude, longitude) => {
     active: false,
     lastPosition: { lat: latitude, lon: longitude },
   });
+};
+
+export const getTripsForUser = async (userId, fleetId) => {
+  const tripQuery = query(
+    collection(db, "trips"),
+    where("userId", "==", userId),
+    where("fleetId", "==", fleetId),
+    orderBy("startTime", "desc")
+  );
+
+  const snapshot = await getDocs(tripQuery);
+  return snapshot.docs.map((docSnap) => ({
+    tripId: docSnap.id,
+    ...docSnap.data(),
+  }));
 };
