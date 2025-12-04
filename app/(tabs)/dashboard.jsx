@@ -99,6 +99,10 @@ const DashboardScreen = () => {
     };
 
     checkForActiveTrip();
+
+    return () => {
+      locationSubscription.current?.remove();
+    };
   }, [user]);
 
   useEffect(() => {
@@ -180,23 +184,32 @@ const DashboardScreen = () => {
   };
 
   const stopRecording = async () => {
-    if (locationSubscription.current) {
-      try {
-        const lastPos = await Location.getCurrentPositionAsync({});
-        await endTrip(
-          currentTripId.current,
-          lastPos.coords.latitude,
-          lastPos.coords.longitude
-        );
-      } catch (error) {
-        console.error("Error stopping trip:", error);
-        Alert.alert("Error", "Could not save the end of your trip properly.");
-      } finally {
-        locationSubscription.current.remove();
-        locationSubscription.current = null;
-        currentTripId.current = null;
-        setRecording(false);
+    try {
+      // Check for location permission before trying to get the current position
+      const { status: currentStatus } =
+        await Location.getForegroundPermissionsAsync();
+      if (currentStatus !== "granted") {
+        const { status: newStatus } =
+          await Location.requestForegroundPermissionsAsync();
+        if (newStatus !== "granted") {
+          Alert.alert("Permission Denied", "Location permission is required to stop the trip accurately.");
+          return;
+        }
       }
+      const lastPos = await Location.getCurrentPositionAsync({});
+      await endTrip(
+        currentTripId.current,
+        lastPos.coords.latitude,
+        lastPos.coords.longitude
+      );
+    } catch (error) {
+      console.error("Error stopping trip:", error);
+      Alert.alert("Error", "Could not save the end of your trip properly.");
+    } finally {
+      locationSubscription.current?.remove();
+      locationSubscription.current = null;
+      currentTripId.current = null;
+      setRecording(false);
     }
   };
 
