@@ -185,7 +185,6 @@ const DashboardScreen = () => {
 
   const stopRecording = async () => {
     try {
-      // Check for location permission before trying to get the current position
       const { status: currentStatus } =
         await Location.getForegroundPermissionsAsync();
       if (currentStatus !== "granted") {
