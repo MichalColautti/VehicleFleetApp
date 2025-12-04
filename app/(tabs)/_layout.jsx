@@ -2,19 +2,25 @@ import DashboardIcon from "@/assets/icons/dashboard.svg";
 import FleetIcon from "@/assets/icons/fleet.svg";
 import MapIcon from "@/assets/icons/map.svg";
 import NotificationsButton from "@/components/NotificationsButton";
-import { Tabs } from "expo-router";
-import { getAuth } from "firebase/auth";
+import { Tabs, useRouter } from "expo-router";
+import { getAuth, signOut } from "firebase/auth";
 import { useEffect, useState } from "react";
-import { StyleSheet } from "react-native";
+import { StyleSheet, Text, TouchableOpacity } from "react-native";
 
 import { getFleetsForUserWithPermission } from "@/services/fleetMembershipService";
 
 const MainLayout = () => {
   const auth = getAuth();
   const user = auth.currentUser;
+  const router = useRouter();
   const [fleetsWhereRecordPosition, setFleetsWhereRecordPosition] = useState(
     []
   );
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.replace("/");
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -57,6 +63,11 @@ const MainLayout = () => {
         headerTitleAlign: "center",
         tabBarActiveTintColor: "#007bff",
         headerRight: () => <NotificationsButton />,
+        headerLeft: () => (
+          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+            <Text style={styles.logoutButtonText}>Logout</Text>
+          </TouchableOpacity>
+        ),
       }}
     >
       <Tabs.Screen
@@ -105,6 +116,13 @@ const MainLayout = () => {
 const styles = StyleSheet.create({
   notificationsIcon: {
     marginRight: 15,
+  },
+  logoutButton: {
+    marginLeft: 15,
+  },
+  logoutButtonText: {
+    color: "red",
+    fontSize: 16,
   },
 });
 

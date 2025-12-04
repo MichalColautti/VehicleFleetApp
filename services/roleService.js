@@ -1,12 +1,19 @@
 import { db } from "@/config/firebaseConfig";
-import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+} from "firebase/firestore";
 
 export const getRoles = async () => {
   const rolesRef = collection(db, "roles");
   const rolesSnap = await getDocs(rolesRef);
-  const roles = rolesSnap.docs.map(doc => ({ 
-    id: doc.id, 
-    ...doc.data() 
+  const roles = rolesSnap.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
   }));
   return roles;
 };
@@ -26,8 +33,7 @@ export const hasPermissions = async (userId, fleetId, permission) => {
     query(
       collection(db, "fleet_memberships"),
       where("userId", "==", userId),
-      where("fleetId", "==", fleetId),
-      where("status", "==", "accepted")
+      where("fleetId", "==", fleetId)
     )
   );
 

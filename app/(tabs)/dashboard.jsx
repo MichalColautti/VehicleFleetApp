@@ -3,6 +3,7 @@ import { getFleetsForUserWithPermission } from "@/services/fleetMembershipServic
 import { getFleetVehicles } from "@/services/fleetVechicleService";
 import {
   endTrip,
+  getActiveTripForUser,
   startTrip,
   updateTripLocation,
 } from "@/services/locationService";
@@ -22,7 +23,6 @@ import DropDownPicker from "react-native-dropdown-picker";
 const DashboardScreen = () => {
   const [fleets, setFleets] = useState([]);
   const [vehicles, setVehicles] = useState([]);
-  const [filteredVehicles, setFilteredVehicles] = useState([]);
 
   const [fleetOpen, setFleetOpen] = useState(false);
   const [vehicleOpen, setVehicleOpen] = useState(false);
@@ -36,7 +36,7 @@ const DashboardScreen = () => {
   const [recording, setRecording] = useState(false);
   const locationSubscription = useRef(null);
 
-  const [currentTrip, setCurrentTrip] = useState(null);
+  const currentTripId = useRef(null);
 
   const auth = getAuth();
   const user = auth.currentUser;
@@ -67,6 +67,45 @@ const DashboardScreen = () => {
   }, [user]);
 
   useEffect(() => {
+    const checkForActiveTrip = async () => {
+      if (!user) return;
+
+      const activeTrip = await getActiveTripForUser(user.uid);
+      if (activeTrip) {
+        console.log("Active trip found, resuming...", activeTrip);
+        setSelectedFleet(activeTrip.fleetId);
+        setSelectedVehicle(activeTrip.vehicleId);
+        currentTripId.current = activeTrip.tripId;
+        setRecording(true);
+
+        locationSubscription.current = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.High,
+            timeInterval: 10000,
+          },
+          async (location) => {
+            const { latitude, longitude, speed } = location.coords;
+            const speedKmh = speed * 3.6;
+            await updateTripLocation(
+              currentTripId.current,
+              latitude,
+              longitude,
+              user.uid,
+              speedKmh
+            );
+          }
+        );
+      }
+    };
+
+    checkForActiveTrip();
+
+    return () => {
+      locationSubscription.current?.remove();
+    };
+  }, [user]);
+
+  useEffect(() => {
     const fetchVehicles = async () => {
       if (!selectedFleet) return;
 
@@ -74,7 +113,6 @@ const DashboardScreen = () => {
         setLoadingVehicles(true);
         const fleetVehicles = await getFleetVehicles(selectedFleet);
         setVehicles(fleetVehicles);
-        setFilteredVehicles(fleetVehicles);
       } catch (err) {
         console.error("Error fetching vehicles:", err);
       } finally {
@@ -91,50 +129,85 @@ const DashboardScreen = () => {
       return;
     }
 
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("No access to location");
-      return;
-    }
-
-    const pos = await Location.getCurrentPositionAsync({});
-    const { latitude, longitude } = pos.coords;
-
-    const tripId = await startTrip(
-      user.uid,
-      selectedFleet,
-      selectedVehicle,
-      latitude,
-      longitude
-    );
-    setCurrentTrip(tripId);
-    setRecording(true);
-
-    locationSubscription.current = await Location.watchPositionAsync(
-      {
-        accuracy: Location.Accuracy.High,
-        timeInterval: 10000,
-        distanceInterval: 10, // refresh every 10 meters
-      },
-      async (location) => {
-        const { latitude, longitude, speed } = location.coords;
-        const speedKmh = speed * 3.6;
-        await updateTripLocation(tripId, latitude, longitude, speedKmh);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Permission Denied", "No access to location.");
+        return;
       }
-    );
+
+      setRecording(true); 
+      const pos = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = pos.coords;
+
+      const tripId = await startTrip(
+        user.uid,
+        selectedFleet,
+        selectedVehicle,
+        latitude,
+        longitude
+      );
+      currentTripId.current = tripId;
+
+      locationSubscription.current = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High,
+          timeInterval: 10000,
+          //distanceInterval: 10, // refresh every 10 meters
+        },
+        async (location) => {
+          try {
+            if (location.coords.accuracy > 25) {
+              console.log(`Removed inaccurate location update with accuracy: ${location.coords.accuracy}m`);
+              return;
+            }
+
+            const { latitude, longitude, speed } = location.coords;
+            const speedKmh = speed * 3.6;
+            await updateTripLocation(
+              currentTripId.current,
+              latitude,
+              longitude,
+              user.uid,
+              speedKmh
+            );
+          } catch (error) {
+            console.error("Error updating trip location:", error);
+          }
+        }
+      );
+    } catch (error) {
+      console.error("Error starting recording:", error);
+      Alert.alert("Error", "Could not start recording trip.");
+      setRecording(false); 
+    }
   };
 
   const stopRecording = async () => {
-    if (locationSubscription.current) {
+    try {
+      const { status: currentStatus } =
+        await Location.getForegroundPermissionsAsync();
+      if (currentStatus !== "granted") {
+        const { status: newStatus } =
+          await Location.requestForegroundPermissionsAsync();
+        if (newStatus !== "granted") {
+          Alert.alert("Permission Denied", "Location permission is required to stop the trip accurately.");
+          return;
+        }
+      }
       const lastPos = await Location.getCurrentPositionAsync({});
       await endTrip(
-        currentTrip,
+        currentTripId.current,
         lastPos.coords.latitude,
         lastPos.coords.longitude
       );
-      locationSubscription.current.remove();
+    } catch (error) {
+      console.error("Error stopping trip:", error);
+      Alert.alert("Error", "Could not save the end of your trip properly.");
+    } finally {
+      locationSubscription.current?.remove();
       locationSubscription.current = null;
-      setCurrentTrip(null);
+      currentTripId.current = null;
       setRecording(false);
     }
   };
@@ -172,7 +245,7 @@ const DashboardScreen = () => {
           <DropDownPicker
             open={vehicleOpen}
             value={selectedVehicle}
-            items={filteredVehicles.map((vehicle) => ({
+            items={vehicles.map((vehicle) => ({
               label: `${vehicle.name} (${vehicle.registrationNumber})`,
               value: vehicle.id,
             }))}

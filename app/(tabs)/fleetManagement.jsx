@@ -1,4 +1,3 @@
-import FleetDetailsModal from "@/components/FleetDetailsModal";
 import FleetList from "@/components/FleetList";
 import { getAuth } from "firebase/auth";
 import { useEffect, useState } from "react";
@@ -12,33 +11,26 @@ import {
   View,
 } from "react-native";
 
-import {
-  deleteFleetMember,
-  getFleetMembersIncludingPending,
-  inviteUserToFleet,
-} from "@/services/fleetMembershipService";
+import { getFleetMembersIncludingPending } from "@/services/fleetMembershipService";
 import {
   createFleet,
   deleteFleet,
+  getJoinedFleets,
   getOwnedFleets,
 } from "@/services/fleetService";
-import {
-  addVehicle,
-  deleteVehicle,
-  getFleetVehicles,
-} from "@/services/fleetVechicleService";
-import { getUserIdByEmail } from "@/services/userService";
+import { getFleetVehicles } from "@/services/fleetVechicleService";
+import { useRouter } from "expo-router";
 
 const FleetManagementScreen = () => {
   const [fleetName, setFleetName] = useState("");
-  const [fleets, setFleets] = useState([]);
-  const [selectedFleet, setSelectedFleet] = useState(null);
-  const [inviteInput, setInviteInput] = useState({ email: "", roleId: "" });
-  const [modalVisible, setModalVisible] = useState(false);
+  const [ownedFleets, setOwnedFleets] = useState([]);
+  const [joinedFleets, setJoinedFleets] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
   const auth = getAuth();
   const currentUser = auth.currentUser;
-  const [refreshing, setRefreshing] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     if (currentUser) {
@@ -49,28 +41,28 @@ const FleetManagementScreen = () => {
   const fetchFleets = async () => {
     setLoading(true);
     try {
-      const userFleets = await getOwnedFleets(currentUser.uid);
+      const owned = await getOwnedFleets(currentUser.uid);
+      const joined = await getJoinedFleets(currentUser.uid);
 
-      const fleetsWithMembers = await Promise.all(
-        userFleets.map(async (fleet) => {
+      const ownedFleetsWithData = await Promise.all(
+        owned.map(async (fleet) => {
           const members = await getFleetMembersIncludingPending(fleet.id);
-          return { ...fleet, members };
-        })
-      );
-      setFleets(fleetsWithMembers);
-
-      const fleetsWithVehicles = await Promise.all(
-        fleetsWithMembers.map(async (fleet) => {
           const vehicles = await getFleetVehicles(fleet.id);
-          return { ...fleet, vehicles };
+          return { ...fleet, members, vehicles };
         })
       );
-      setFleets(fleetsWithVehicles);
+      setOwnedFleets(ownedFleetsWithData);
 
-      return fleetsWithVehicles;
+      const joinedFleetsWithData = await Promise.all(
+        joined.map(async (fleet) => {
+          const members = await getFleetMembersIncludingPending(fleet.id);
+          const vehicles = await getFleetVehicles(fleet.id);
+          return { ...fleet, members, vehicles };
+        })
+      );
+      setJoinedFleets(joinedFleetsWithData);
     } catch (error) {
       Alert.alert("Error", error.message);
-      return [];
     } finally {
       setLoading(false);
     }
@@ -82,7 +74,7 @@ const FleetManagementScreen = () => {
       return;
     }
 
-    if (fleets.find((f) => f.name === fleetName)) {
+    if (ownedFleets.find((f) => f.name === fleetName)) {
       Alert.alert("Error", "Fleet with that name already exists");
       return;
     }
@@ -120,125 +112,7 @@ const FleetManagementScreen = () => {
   };
 
   const handleOpenFleet = (fleet) => {
-    setSelectedFleet(fleet);
-    setInviteInput({ email: "", roleId: "" });
-    setModalVisible(true);
-  };
-
-  const handleInvite = async () => {
-    if (!inviteInput.email || !selectedFleet) {
-      Alert.alert("Error", "All fields are required");
-      return;
-    }
-
-    if (!inviteInput.roleId) {
-      Alert.alert("Error", "Please select a role for the new member");
-      return;
-    }
-
-    //console.log("RoleId:", inviteInput.roleId, typeof inviteInput.roleId);
-
-    try {
-      const userId = await getUserIdByEmail(inviteInput.email);
-
-      if (!userId) {
-        Alert.alert("Error", "User with this email does not exist");
-        return;
-      }
-
-      const currentMembers = await getFleetMembersIncludingPending(
-        selectedFleet.id
-      );
-      const memberInvited = currentMembers.some((m) => m.userId === userId);
-
-      if (memberInvited) {
-        Alert.alert("Error", "This user is already a member of the fleet");
-        return;
-      }
-
-      const chosenRole = inviteInput.roleId;
-      await inviteUserToFleet(selectedFleet.id, userId, inviteInput.roleId);
-      Alert.alert("Success", "User invited successfully");
-
-      setInviteInput({ email: "", roleId: chosenRole });
-
-      const updatedFleets = await fetchFleets();
-      const updatedFleet = updatedFleets.find((f) => f.id === selectedFleet.id);
-      if (updatedFleet) {
-        setSelectedFleet(updatedFleet);
-      }
-    } catch (error) {
-      Alert.alert("Error", error.message);
-    }
-  };
-
-  const handleDeleteMember = async (member) => {
-    if (!selectedFleet || !member) return;
-
-    Alert.alert(
-      "Delete Fleet",
-      "Are you sure you want to delete this member?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteFleetMember(member.membershipId);
-
-              const updatedFleets = await fetchFleets();
-              const updatedFleet = updatedFleets.find(
-                (f) => f.id === selectedFleet.id
-              );
-              if (updatedFleet) {
-                setSelectedFleet(updatedFleet);
-              }
-
-              Alert.alert("Success", "Member removed successfully");
-            } catch (error) {
-              Alert.alert("Error", error.message);
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleAddVehicle = async (fleetId, vehicleData) => {
-    try {
-      //console.log("Adding vehicle:", fleetId, vehicleData);
-      await addVehicle(
-        fleetId,
-        vehicleData.name,
-        vehicleData.registrationNumber
-      );
-      Alert.alert("Success", "Vehicle added successfully");
-      const updatedFleets = await fetchFleets();
-      const updatedFleet = updatedFleets.find((f) => f.id === fleetId);
-      if (updatedFleet) setSelectedFleet(updatedFleet);
-    } catch (error) {
-      Alert.alert("Error", error.message);
-    }
-  };
-
-  const handleDeleteVehicle = async (vehicleId) => {
-    try {
-      await deleteVehicle(vehicleId);
-      Alert.alert("Success", "Vehicle deleted successfully");
-
-      const updatedFleet = {
-        ...selectedFleet,
-        vehicles: selectedFleet.vehicles.filter((v) => v.id !== vehicleId),
-      };
-      setSelectedFleet(updatedFleet);
-      fetchFleets();
-    } catch (error) {
-      Alert.alert("Error", error.message);
-    }
+    router.push(`/fleetDetails/${fleet.id}`);
   };
 
   const handleRefresh = async () => {
@@ -248,8 +122,8 @@ const FleetManagementScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={{ padding: 16 }}>
+    <View>
+      <View style={{ marginHorizontal: 16 }}>
         <Text style={styles.title}>Create Fleet</Text>
 
         <TextInput
@@ -265,15 +139,15 @@ const FleetManagementScreen = () => {
         >
           <Text style={styles.createFleetButtonText}>Create fleet</Text>
         </TouchableOpacity>
-
-        <Text style={styles.title}>Your Fleets</Text>
       </View>
+
+      <Text style={styles.title}>Your Fleets</Text>
 
       {loading ? (
         <ActivityIndicator size="large" color="#007bff" style={styles.loader} />
       ) : (
         <FleetList
-          fleets={fleets}
+          fleets={ownedFleets}
           handleOpenFleet={handleOpenFleet}
           handleDeleteFleet={handleDeleteFleet}
           refreshing={refreshing}
@@ -281,29 +155,27 @@ const FleetManagementScreen = () => {
         />
       )}
 
-      <FleetDetailsModal
-        modalVisible={modalVisible}
-        setModalVisible={setModalVisible}
-        selectedFleet={selectedFleet}
-        inviteInput={inviteInput}
-        setInviteInput={setInviteInput}
-        handleInvite={handleInvite}
-        handleDeleteMember={handleDeleteMember}
-        handleAddVehicle={handleAddVehicle}
-        handleDeleteVehicle={handleDeleteVehicle}
-      />
+      <Text style={styles.title}>Joined</Text>
+      {loading ? (
+        <ActivityIndicator size="large" color="#007bff" style={styles.loader} />
+      ) : (
+        <FleetList
+          fleets={joinedFleets}
+          handleOpenFleet={handleOpenFleet}
+          handleDeleteFleet={null}
+          refreshing={refreshing}
+          handleRefresh={handleRefresh}
+        />
+      )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
   title: {
     fontSize: 22,
     fontWeight: "bold",
-    marginBottom: 8,
+    marginBottom: 16,
     marginTop: 16,
     textAlign: "center",
   },
@@ -315,7 +187,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   loader: {
-    marginTop: 40,
+    padding: 20,
     alignSelf: "center",
   },
   createFleetButton: {

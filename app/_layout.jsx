@@ -23,6 +23,8 @@ const RootLayout = () => {
         <Stack.Screen name="index" options={{ title: 'Home' }} />
         <Stack.Screen name='auth' options={{ headerTitle: 'Login'}}/>
         <Stack.Screen name='(tabs)' options={{ headerShown: false}}/>
+        <Stack.Screen name="fleetDetails" options={{ headerTitle: 'Fleet Details', headerBackTitleVisible: false, headerBackTitle: "go back"}}/>
+        <Stack.Screen name="trip" options={{ headerTitle: 'Trip History', headerBackTitleVisible: false, headerBackTitle: "go back"}}/>
       </Stack>
     </AuthProvider>
   )

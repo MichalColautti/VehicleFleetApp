@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import MapView, { Callout, Marker, UrlTile } from "react-native-maps";
+import MapView, { Callout, Marker } from "react-native-maps";
 
 import { getFleetById } from "@/services/fleetService";
 import { getVehicleById } from "@/services/fleetVechicleService";
@@ -8,8 +8,9 @@ import { listenToActiveTrips } from "@/services/locationService";
 import { getUserEmailById } from "@/services/userService";
 
 const FleetMap = ({ mapRef, location, fleetIds }) => {
-  const [activeTrips, setActiveTrips] = useState([]);
+  const [activeTrips, setActiveTrips] = useState({}); 
   const [drivers, setDrivers] = useState([]);
+  const driverDetailsCache = useRef({});
 
   useEffect(() => {
     if (!fleetIds || fleetIds.length === 0) return;
@@ -17,11 +18,12 @@ const FleetMap = ({ mapRef, location, fleetIds }) => {
     let unsubscribers = [];
     fleetIds.forEach((fleetId) => {
       const unsub = listenToActiveTrips(fleetId, (fleetTrips) => {
-        console.log("Active trips for fleet:", fleetId, fleetTrips);
-        setActiveTrips((prev) => {
-          const others = prev.filter((t) => t.fleetId !== fleetId);
-          return [...others, ...fleetTrips];
-        });
+        setActiveTrips((prevTrips) => ({
+          ...prevTrips,
+          ...Object.fromEntries(
+            fleetTrips.map((trip) => [trip.tripId, trip])
+          ),
+        }));
       });
       unsubscribers.push(unsub);
     });
@@ -31,29 +33,51 @@ const FleetMap = ({ mapRef, location, fleetIds }) => {
 
   useEffect(() => {
     const fetchTripDetails = async () => {
-      const result = await Promise.all(
-        activeTrips.map(async (trip) => {
-          const email = await getUserEmailById(trip.userId);
-          const vehicle = await getVehicleById(trip.vehicleId);
-          const fleet = await getFleetById(trip.fleetId);
+      const tripsArray = Object.values(activeTrips);
+      if (tripsArray.length === 0) {
+        setDrivers([]);
+        return;
+      }
+
+      const newDrivers = await Promise.all(
+        tripsArray.map(async (trip) => {
+          if (driverDetailsCache.current[trip.tripId]) {
+            const lastPoint = trip.points?.[trip.points.length - 1];
+            return {
+              ...driverDetailsCache.current[trip.tripId],
+              ...trip,
+              lastLat: lastPoint?.lat,
+              lastLon: lastPoint?.lon,
+              speed: lastPoint?.speed || 0,
+            };
+          }
+
+          const [email, vehicle, fleet] = await Promise.all([
+            getUserEmailById(trip.userId),
+            getVehicleById(trip.vehicleId),
+            getFleetById(trip.fleetId),
+          ]);
+
           const lastPoint = trip.points?.[trip.points.length - 1];
-          return {
+          const driverDetail = {
             ...trip,
             email,
             fleetName: fleet?.name || "Unknown Fleet",
             vehicleName: vehicle?.name || "Unknown Vehicle",
-            registrationNumber: vehicle?.registrationNumber || "Unknown Registration",
+            registrationNumber:
+              vehicle?.registrationNumber || "Unknown Registration",
             lastLat: lastPoint?.lat,
             lastLon: lastPoint?.lon,
             speed: lastPoint?.speed || 0,
           };
+          driverDetailsCache.current[trip.tripId] = driverDetail;
+          return driverDetail;
         })
       );
-
-      setDrivers(result);
+      setDrivers(newDrivers);
     };
 
-    if (activeTrips.length > 0) fetchTripDetails();
+    fetchTripDetails();
   }, [activeTrips]);
 
   return (
@@ -68,12 +92,7 @@ const FleetMap = ({ mapRef, location, fleetIds }) => {
       }}
       showsUserLocation={true}
     >
-      <UrlTile
-        urlTemplate="https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        zIndex={-1}
-      />
-
-      {drivers.map((driver) =>
+      {drivers.map((driver) => (
         driver.lastLat != null && driver.lastLon != null ? (
           <Marker
             key={driver.tripId || `${driver.fleetId}-${driver.userId}`}
@@ -101,7 +120,7 @@ const FleetMap = ({ mapRef, location, fleetIds }) => {
             </Callout>
           </Marker>
         ) : null
-      )}
+      ))}
     </MapView>
   );
 };

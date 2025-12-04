@@ -43,24 +43,25 @@ const Notifications = ({fetchNotificationCount}) => {
     }
   };
 
-  const handleAccept = async (membershipId) => {
+  const handleAccept = async (invite) => {
     if (!currentUser?.uid) return;
 
     try {
-      await acceptInvite(membershipId);
+      await acceptInvite(invite.notificationId, currentUser.uid, invite.fleetId, invite.roleId);
       Alert.alert("Success", "You have been added to the fleet.");
       fetchPendingInvites();
       appEvents.emit("fleetAccepted")
+      fetchNotificationCount();
     } catch (error) {
       Alert.alert("Error", error.message);
     }
   };
 
-  const handleReject = async (membershipId) => {
+  const handleReject = async (invite) => {
     if (!currentUser?.uid) return;
 
     try {
-      await rejectInvite(membershipId);
+      await rejectInvite(invite.notificationId);
       Alert.alert("", "You have rejected the invite.");
       fetchPendingInvites();
     } catch (error) {
@@ -90,16 +91,16 @@ const Notifications = ({fetchNotificationCount}) => {
         ) : (
           <FlatList
             data={invites}
-            keyExtractor={(item) => item.membershipId}
+            keyExtractor={(item) => item}
             renderItem={({ item }) => (
               <InviteItem
                 invite={item}
                 onAccept={() => {
-                  handleAccept(item.membershipId);
+                  handleAccept(item);
                   fetchNotificationCount();
                 }}
                 onReject={() => {
-                  handleReject(item.membershipId);
+                  handleReject(item);
                   fetchNotificationCount();
                 }}
               />

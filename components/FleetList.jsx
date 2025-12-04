@@ -8,16 +8,10 @@ const FleetList = ({
   handleOpenFleet,
   handleDeleteFleet,
   refreshing,
-  handleRefresh
+  handleRefresh,
 }) => {
-  return (
-    <SwipeListView
-      data={fleets}
-      keyExtractor={(item) => item.id}
-      renderItem={({ item }) => (
-        <FleetItem handleOpenFleet={handleOpenFleet} item={item} />
-      )}
-      renderHiddenItem={({ item }) => (
+  const renderHiddenItem = handleDeleteFleet
+    ? ({ item }) => (
         <View style={styles.fleetItemContainer}>
           <TouchableOpacity
             style={styles.deleteButton}
@@ -26,7 +20,17 @@ const FleetList = ({
             <DeleteIcon width={24} height={24} />
           </TouchableOpacity>
         </View>
+      )
+    : undefined;
+  return (
+    <SwipeListView
+      style={styles.container}
+      data={fleets}
+      keyExtractor={(item) => item.id}
+      renderItem={({ item }) => (
+        <FleetItem handleOpenFleet={handleOpenFleet} item={item} />
       )}
+      renderHiddenItem={renderHiddenItem}
       rightOpenValue={-70}
       disableRightSwipe
       stopRightSwipe={-70}
@@ -40,6 +44,9 @@ const FleetList = ({
 };
 
 const styles = StyleSheet.create({
+  container: {
+    maxHeight: 240,
+  },
   noFleetsText: {
     textAlign: "center",
     fontSize: 16,
@@ -49,14 +56,13 @@ const styles = StyleSheet.create({
   fleetItemContainer: {
     alignItems: "center",
     backgroundColor: "#fafafa",
-    flex: 1,
     flexDirection: "row",
     justifyContent: "flex-end",
   },
   deleteButton: {
     backgroundColor: "red",
     width: 70,
-    height: "100%",
+    height: 80,
     justifyContent: "center",
     alignItems: "center",
   },

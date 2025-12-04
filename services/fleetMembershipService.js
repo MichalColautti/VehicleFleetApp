@@ -1,25 +1,31 @@
 import { db } from "@/config/firebaseConfig";
 import {
-    addDoc,
-    collection,
-    deleteDoc,
-    doc,
-    getDoc,
-    getDocs,
-    query,
-    updateDoc,
-    where,
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  where,
 } from "firebase/firestore";
-
+import { getFleetById } from "./fleetService";
 import { getRoleById } from "./roleService";
 
 export const inviteUserToFleet = async (fleetId, userId, roleId) => {
-  const membershipsRef = collection(db, "fleet_memberships");
-  await addDoc(membershipsRef, {
-    fleetId,
+  const notificationsRef = collection(db, "notifications");
+  const fleet = await getFleetById(fleetId);
+  const role = await getRoleById(roleId);
+  const fleetName = fleet?.name || fleetId;
+  const roleName = role?.name || roleId;
+
+  await addDoc(notificationsRef, {
+    type: "invite",
     userId,
+    fleetId,
     roleId,
-    status: "pending",
+    timestamp: new Date(),
+    message: `You have been invited to fleet "${fleetName}" as "${roleName}"`,
   });
 };
 
@@ -93,6 +99,9 @@ export const getFleetMembersIncludingPending = async (fleetId) => {
   const membershipsSnap = await getDocs(
     query(collection(db, "fleet_memberships"), where("fleetId", "==", fleetId))
   );
+  const memberIds = membershipsSnap.docs.map(
+    (docSnap) => docSnap.data().userId
+  );
 
   const members = await Promise.all(
     membershipsSnap.docs.map(async (docSnap) => {
@@ -103,37 +112,61 @@ export const getFleetMembersIncludingPending = async (fleetId) => {
 
       return {
         ...membership,
+        status: membership.status,
         email: userSnap.exists() ? userSnap.data().email : null,
-        name: userSnap.exists()
-          ? userSnap.data().name || "Unnamed"
-          : "Unknown user",
       };
     })
   );
+  const notificationsSnap = await getDocs(
+    query(
+      collection(db, "notifications"),
+      where("fleetId", "==", fleetId),
+      where("type", "==", "invite")
+    )
+  );
 
-  return members;
+  const invited = await Promise.all(
+    notificationsSnap.docs
+      .filter((docSnap) => !memberIds.includes(docSnap.data().userId))
+      .map(async (docSnap) => {
+        const notification = docSnap.data();
+        const userRef = doc(db, "users", notification.userId);
+        const userSnap = await getDoc(userRef);
+        return {
+          notificationId: docSnap.id,
+          userId: notification.userId,
+          status: "pending",
+          email: userSnap.exists() ? userSnap.data().email : null,
+        };
+      })
+  );
+
+  return [...members, ...invited];
 };
 
 export const getPendingInvites = async (userId) => {
-  const membershipsSnap = await getDocs(
+  const notificationsSnap = await getDocs(
     query(
-      collection(db, "fleet_memberships"),
+      collection(db, "notifications"),
       where("userId", "==", userId),
-      where("status", "==", "pending")
+      where("type", "==", "invite")
     )
   );
 
   const invites = [];
-  for (const membershipDoc of membershipsSnap.docs) {
+  for (const notificaitonDoc of notificationsSnap.docs) {
     const fleetDoc = await getDoc(
-      doc(db, "fleets", membershipDoc.data().fleetId)
+      doc(db, "fleets", notificaitonDoc.data().fleetId)
     );
+    const notificationData = notificaitonDoc.data();
     if (fleetDoc.exists()) {
       invites.push({
-        membershipId: membershipDoc.id,
+        notificationId: notificaitonDoc.id,
         fleetId: fleetDoc.id,
         fleetName: fleetDoc.data().name,
-        roleId: membershipDoc.data().roleId,
+        roleId: notificaitonDoc.data().roleId,
+        message: notificationData.message,
+        timestamp: notificationData.timestamp.toDate(),
       });
     }
   }
@@ -141,12 +174,17 @@ export const getPendingInvites = async (userId) => {
   return invites;
 };
 
-export const acceptInvite = async (membershipId) => {
-  const membershipRef = doc(db, "fleet_memberships", membershipId);
-  await updateDoc(membershipRef, { status: "accepted" });
+export const acceptInvite = async (notificationId, userId, fleetId, roleId) => {
+  await addDoc(collection(db, "fleet_memberships"), {
+    fleetId,
+    userId,
+    roleId,
+    status: "accepted",
+  });
+  await deleteDoc(doc(db, "notifications", notificationId));
 };
 
-export const rejectInvite = async (membershipId) => {
-  const membershipRef = doc(db, "fleet_memberships", membershipId);
-  await deleteDoc(membershipRef);
+export const rejectInvite = async (notificationId) => {
+  const notificationRef = doc(db, "notifications", notificationId);
+  await deleteDoc(notificationRef);
 };

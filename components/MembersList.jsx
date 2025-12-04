@@ -8,7 +8,7 @@ import {
   View,
 } from "react-native";
 
-const MembersList = ({ members, handleDeleteMember }) => {
+const MembersList = ({ members, handleDeleteMember, handleDeleteInvite, fleet }) => {
   const [memberModalVisible, setMemberModalVisible] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
 
@@ -46,6 +46,8 @@ const MembersList = ({ members, handleDeleteMember }) => {
         handleCloseMember={handleCloseMember}
         selectedMember={selectedMember}
         handleDeleteMember={handleDeleteMember}
+        handleDeleteInvite={handleDeleteInvite}
+        fleet={fleet}
       />
     </View>
   );
@@ -63,7 +65,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   memberList: {
-    maxHeight: 140,
+    maxHeight: 185,
     borderLeftWidth: 1,
     borderColor: "#ddd",
   },

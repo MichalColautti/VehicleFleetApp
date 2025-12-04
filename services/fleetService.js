@@ -37,15 +37,12 @@ export const deleteFleet = async (fleetId) => {
     await deleteDoc(doc(db, "fleet_memberships", docSnap.id));
   }
 
-  // Delete location history
-  const locationSnap = await getDocs(
-    query(
-      collection(db, "fleet_location_history"),
-      where("fleetId", "==", fleetId)
-    )
+  // Delete trips
+   const tripsSnap = await getDocs(
+    query(collection(db, "trips"), where("fleetId", "==", fleetId))
   );
-  for (const docSnap of locationSnap.docs) {
-    await deleteDoc(doc(db, "fleet_location_history", docSnap.id));
+  for (const tripDoc of tripsSnap.docs) {
+    await deleteDoc(doc(db, "trips", tripDoc.id));
   }
 
   // Delete the fleet
@@ -78,6 +75,34 @@ export const getUserFleets = async (userId) => {
   const fleets = [];
   for (const membershipDoc of membershipsSnap.docs) {
     const { fleetId } = membershipDoc.data();
+    const fleetRef = doc(db, "fleets", fleetId);
+    const fleetSnap = await getDoc(fleetRef);
+
+    if (fleetSnap.exists()) {
+      fleets.push({
+        id: fleetSnap.id,
+        ...fleetSnap.data(),
+        membershipId: membershipDoc.id,
+      });
+    }
+  }
+
+  return fleets;
+};
+
+
+export const getJoinedFleets = async (userId) => {
+  const membershipsQuery = query(
+    collection(db, "fleet_memberships"),
+    where("userId", "==", userId),
+    where("status", "==", "accepted")
+  );
+  const membershipsSnap = await getDocs(membershipsQuery);
+
+  const fleets = [];
+  for (const membershipDoc of membershipsSnap.docs) {
+    const { roleId, fleetId } = membershipDoc.data();
+    if(roleId === "owner") continue;
     const fleetRef = doc(db, "fleets", fleetId);
     const fleetSnap = await getDoc(fleetRef);
 

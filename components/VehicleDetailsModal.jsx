@@ -1,3 +1,6 @@
+import { hasPermissions } from "@/services/roleService";
+import { getAuth } from "firebase/auth";
+import { useEffect, useState } from "react";
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 const VehicleDetailsModal = ({
@@ -5,7 +8,13 @@ const VehicleDetailsModal = ({
   handleCloseVehicle,
   selectedVehicle,
   handleDeleteVehicle,
+  fleet,
 }) => {
+  const auth = getAuth();
+  const currentUser = auth.currentUser;
+
+  const [canDeleteVehicle, setCanDeleteVehicle] = useState(false);
+  const [isCheckingPermission, setIsCheckingPermission] = useState(true);
 
   const handleDelete = async () => {
     if (!selectedVehicle) return;
@@ -14,9 +23,24 @@ const VehicleDetailsModal = ({
     handleCloseVehicle();
   };
 
+  useEffect(() => {
+    const checkPermission = async () => {
+      if (fleet?.id && currentUser?.uid) {
+        const hasPermission = await hasPermissions(
+          currentUser.uid,
+          fleet.id,
+          "delete_vehicle"
+        );
+        setCanDeleteVehicle(hasPermission);
+        setIsCheckingPermission(false);
+      }
+    };
+    checkPermission();
+  }, [fleet, currentUser]);
+
   return (
     <Modal
-      visible={vehicleModalVisible}
+      visible={vehicleModalVisible && !isCheckingPermission}
       animationType="slide"
       transparent={true}
       onRequestClose={handleCloseVehicle}
@@ -35,7 +59,7 @@ const VehicleDetailsModal = ({
             </>
           )}
 
-          {selectedVehicle && (
+          {selectedVehicle && canDeleteVehicle && (
             <TouchableOpacity
               style={styles.deleteButton}
               onPress={handleDelete}
