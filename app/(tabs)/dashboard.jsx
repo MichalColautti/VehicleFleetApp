@@ -3,6 +3,7 @@ import { getFleetsForUserWithPermission } from "@/services/fleetMembershipServic
 import { getFleetVehicles } from "@/services/fleetVechicleService";
 import {
   endTrip,
+  getActiveTripForUser,
   startTrip,
   updateTripLocation,
 } from "@/services/locationService";
@@ -35,7 +36,7 @@ const DashboardScreen = () => {
   const [recording, setRecording] = useState(false);
   const locationSubscription = useRef(null);
 
-  const [currentTrip, setCurrentTrip] = useState(null);
+  const currentTripId = useRef(null);
 
   const auth = getAuth();
   const user = auth.currentUser;
@@ -63,6 +64,41 @@ const DashboardScreen = () => {
     return () => {
       appEvents.removeListener("fleetAccepted", fetchFleets);
     };
+  }, [user]);
+
+  useEffect(() => {
+    const checkForActiveTrip = async () => {
+      if (!user) return;
+
+      const activeTrip = await getActiveTripForUser(user.uid);
+      if (activeTrip) {
+        console.log("Active trip found, resuming...", activeTrip);
+        setSelectedFleet(activeTrip.fleetId);
+        setSelectedVehicle(activeTrip.vehicleId);
+        currentTripId.current = activeTrip.tripId;
+        setRecording(true);
+
+        locationSubscription.current = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.High,
+            timeInterval: 10000,
+          },
+          async (location) => {
+            const { latitude, longitude, speed } = location.coords;
+            const speedKmh = speed * 3.6;
+            await updateTripLocation(
+              currentTripId.current,
+              latitude,
+              longitude,
+              user.uid,
+              speedKmh
+            );
+          }
+        );
+      }
+    };
+
+    checkForActiveTrip();
   }, [user]);
 
   useEffect(() => {
@@ -107,24 +143,30 @@ const DashboardScreen = () => {
         latitude,
         longitude
       );
-      setCurrentTrip(tripId);
+      currentTripId.current = tripId;
 
       locationSubscription.current = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.High,
-          timeInterval: 5000,
+          timeInterval: 10000,
           //distanceInterval: 10, // refresh every 10 meters
         },
         async (location) => {
           try {
             if (location.coords.accuracy > 25) {
-              console.log(`Odrzucono niedokładny punkt. Dokładność: ${location.coords.accuracy}m`);
+              console.log(`Removed inaccurate location update with accuracy: ${location.coords.accuracy}m`);
               return;
             }
 
             const { latitude, longitude, speed } = location.coords;
             const speedKmh = speed * 3.6;
-            await updateTripLocation(tripId, latitude, longitude, speedKmh);
+            await updateTripLocation(
+              currentTripId.current,
+              latitude,
+              longitude,
+              user.uid,
+              speedKmh
+            );
           } catch (error) {
             console.error("Error updating trip location:", error);
           }
@@ -142,7 +184,7 @@ const DashboardScreen = () => {
       try {
         const lastPos = await Location.getCurrentPositionAsync({});
         await endTrip(
-          currentTrip,
+          currentTripId.current,
           lastPos.coords.latitude,
           lastPos.coords.longitude
         );
@@ -152,7 +194,7 @@ const DashboardScreen = () => {
       } finally {
         locationSubscription.current.remove();
         locationSubscription.current = null;
-        setCurrentTrip(null);
+        currentTripId.current = null;
         setRecording(false);
       }
     }

@@ -13,6 +13,7 @@ const FleetsLayout = () => {
     >
       <Stack.Screen name="tripHistoryList" options={{ headerShown: false }} />
       <Stack.Screen name="tripHistoryMap" options={{ headerShown: false }} />
+      <Stack.Screen name="driverLocation" options={{ headerShown: false }} />
     </Stack>
   );
 };

@@ -1,3 +1,4 @@
+import { getActiveTripForUser } from "@/services/locationService";
 import { getRoleById, hasPermissions } from "@/services/roleService";
 import { useRouter } from "expo-router";
 import { getAuth } from "firebase/auth";
@@ -19,6 +20,8 @@ const MemberDetailsModal = ({
   const [roleName, setRoleName] = useState("");
   const [canDeleteMember, setCanDeleteMember] = useState(false);
   const [isCheckingPermission, setIsCheckingPermission] = useState(true);
+  const [hasActiveTrip, setHasActiveTrip] = useState(false);
+  const [canViewPosition, setCanViewPosition] = useState(false);
 
   useEffect(() => {
     const fetchRole = async () => {
@@ -29,7 +32,20 @@ const MemberDetailsModal = ({
         setRoleName("No role");
       }
     };
+
+    const checkForActiveTrip = async () => {
+      if (selectedMember?.userId && fleet?.id) {
+        const activeTrip = await getActiveTripForUser(
+          selectedMember.userId,
+          fleet.id
+        );
+        setHasActiveTrip(!!activeTrip);
+      } else {
+        setHasActiveTrip(false);
+      }
+    };
     fetchRole();
+    checkForActiveTrip();
   }, [selectedMember]);
 
   const handleDelete = async () => {
@@ -45,15 +61,18 @@ const MemberDetailsModal = ({
 
   useEffect(() => {
     const checkPermission = async () => {
+      setIsCheckingPermission(true);
       if (fleet?.id && currentUser?.uid && selectedMember) {
-        const hasPermission = await hasPermissions(
-          currentUser.uid,
-          fleet.id,
-          "delete_member"
-        );
-        setCanDeleteMember(hasPermission);
-        setIsCheckingPermission(false);
+        const [hasDeletePermission, hasViewPositionPermission] =
+          await Promise.all([
+            hasPermissions(currentUser.uid, fleet.id, "delete_member"),
+            hasPermissions(currentUser.uid, fleet.id, "view_driver_position"),
+          ]);
+
+        setCanDeleteMember(hasDeletePermission);
+        setCanViewPosition(hasViewPositionPermission);
       }
+      setIsCheckingPermission(false);
     };
     checkPermission();
   }, [fleet, currentUser, selectedMember]);
@@ -69,6 +88,18 @@ const MemberDetailsModal = ({
       params: {
         userId: selectedMember.userId,
         userEmail: selectedMember.email,
+        fleetId: fleet.id,
+      },
+    });
+  };
+
+  const handleShowOnMap = () => {
+    if (!selectedMember) return;
+    handleCloseMember();
+    router.push({
+      pathname: "/trip/driverLocation",
+      params: {
+        userId: selectedMember.userId,
         fleetId: fleet.id,
       },
     });
@@ -97,14 +128,21 @@ const MemberDetailsModal = ({
           )}
 
           {selectedMember && selectedMember.status === "accepted" && (
-            <TouchableOpacity
-              style={styles.historyButton}
-              onPress={handleShowHistory}
-            >
-              <Text style={styles.historyButtonText}>
-                Pokaż historię przejazdów
-              </Text>
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={handleShowHistory}
+              >
+                <Text style={styles.actionButtonText}>
+                  Show trip history
+                </Text>
+              </TouchableOpacity>
+              {hasActiveTrip && canViewPosition && (
+                <TouchableOpacity style={styles.actionButton} onPress={handleShowOnMap}>
+                  <Text style={styles.actionButtonText}>Show on map</Text>
+                </TouchableOpacity>
+              )}
+            </>
           )}
 
           {selectedMember &&
@@ -152,6 +190,19 @@ const styles = StyleSheet.create({
   memberDetails: {
     fontSize: 16,
     marginBottom: 10,
+  },
+  actionButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 10,
+    borderWidth: 1,
+    backgroundColor: "#e0e0e0",
+    borderColor: "#000000",
+    padding: 6,
+    borderRadius: 8,
+  },
+  actionButtonText: {
+    fontSize: 16,
   },
   cancelButton: {
     alignItems: "center",
