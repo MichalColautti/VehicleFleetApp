@@ -22,6 +22,7 @@ const MemberDetailsModal = ({
   const [isCheckingPermission, setIsCheckingPermission] = useState(true);
   const [hasActiveTrip, setHasActiveTrip] = useState(false);
   const [canViewPosition, setCanViewPosition] = useState(false);
+  const [canViewHistory, setCanViewHistory] = useState(false);
 
   useEffect(() => {
     const fetchRole = async () => {
@@ -63,14 +64,19 @@ const MemberDetailsModal = ({
     const checkPermission = async () => {
       setIsCheckingPermission(true);
       if (fleet?.id && currentUser?.uid && selectedMember) {
-        const [hasDeletePermission, hasViewPositionPermission] =
-          await Promise.all([
-            hasPermissions(currentUser.uid, fleet.id, "delete_member"),
-            hasPermissions(currentUser.uid, fleet.id, "view_driver_position"),
-          ]);
+        const [
+          hasDeletePermission,
+          hasViewPositionPermission,
+          hasViewHistoryPermission,
+        ] = await Promise.all([
+          hasPermissions(currentUser.uid, fleet.id, "delete_member"),
+          hasPermissions(currentUser.uid, fleet.id, "view_driver_position"),
+          hasPermissions(currentUser.uid, fleet.id, "view_trip_history"),
+        ]);
 
         setCanDeleteMember(hasDeletePermission);
         setCanViewPosition(hasViewPositionPermission);
+        setCanViewHistory(hasViewHistoryPermission);
       }
       setIsCheckingPermission(false);
     };
@@ -129,14 +135,16 @@ const MemberDetailsModal = ({
 
           {selectedMember && selectedMember.status === "accepted" && (
             <>
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={handleShowHistory}
-              >
-                <Text style={styles.actionButtonText}>
-                  Show trip history
-                </Text>
-              </TouchableOpacity>
+              {canViewHistory && (
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={handleShowHistory}
+                >
+                  <Text style={styles.actionButtonText}>
+                    Show trip history
+                  </Text>
+                </TouchableOpacity>
+              )}
               {hasActiveTrip && canViewPosition && (
                 <TouchableOpacity style={styles.actionButton} onPress={handleShowOnMap}>
                   <Text style={styles.actionButtonText}>Show on map</Text>
