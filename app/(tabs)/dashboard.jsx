@@ -7,6 +7,13 @@ import {
   startTrip,
   updateTripLocation,
 } from "@/services/locationService";
+import {
+  getAndClearQueuedActions,
+  getAndClearQueuedUpdates,
+  queueEndTripAction,
+  queueLocationUpdate,
+} from "@/services/offlineService";
+import { useNetInfo } from "@react-native-community/netinfo";
 import * as Location from "expo-location";
 import { getAuth } from "firebase/auth";
 import { useEffect, useRef, useState } from "react";
@@ -40,6 +47,7 @@ const DashboardScreen = () => {
 
   const auth = getAuth();
   const user = auth.currentUser;
+  const netInfo = useNetInfo();
 
   useEffect(() => {
     const fetchFleets = async () => {
@@ -69,6 +77,8 @@ const DashboardScreen = () => {
   useEffect(() => {
     const checkForActiveTrip = async () => {
       if (!user) return;
+      if (recording) return;
+      if (!user || loadingFleets || recording) return;
 
       const activeTrip = await getActiveTripForUser(user.uid);
       if (activeTrip) {
@@ -103,7 +113,53 @@ const DashboardScreen = () => {
     return () => {
       locationSubscription.current?.remove();
     };
-  }, [user]);
+  }, [user, loadingFleets]);
+
+  // Synchronize offline data when connection is restored
+  useEffect(() => {
+    const syncOfflineData = async () => {
+      if (netInfo.isConnected && user) {
+        const queuedActions = await getAndClearQueuedActions();
+        if (queuedActions.length > 0) {
+          console.log(`Syncing ${queuedActions.length} offline actions...`);
+          for (const action of queuedActions) {
+            if (action.type === "END_TRIP") {
+              await endTrip(action.tripId, action.latitude, action.longitude);
+            }
+          }
+          console.log("Offline actions synced successfully.");
+        }
+
+        const activeTrip = await getActiveTripForUser(user.uid);
+
+        if (activeTrip) {
+          if (currentTripId.current !== activeTrip.tripId) {
+            console.log(
+              `Sync: Active trip found on server. Updating local tripId from ${currentTripId.current} to ${activeTrip.tripId}`
+            );
+            currentTripId.current = activeTrip.tripId;
+          }
+        } else if (recording) {
+          console.log("Sync: No active trip on server, but app is recording. Stopping recording state.");
+          setRecording(false);
+          currentTripId.current = null;
+        }
+
+        const queuedUpdates = await getAndClearQueuedUpdates();
+        if (queuedUpdates.length > 0) {
+          console.log(`${queuedUpdates.length} offline updates...`);
+          await Promise.all(
+            queuedUpdates.map((update) =>
+              updateTripLocation(update.tripId, update.latitude, update.longitude, update.userId, update.speedKmh)
+            )
+          );
+          console.log("Offline data synced successfully.");
+        }
+      }
+    };
+
+    syncOfflineData();
+  }, [netInfo.isConnected, user]);
 
   useEffect(() => {
     const fetchVehicles = async () => {
@@ -136,7 +192,7 @@ const DashboardScreen = () => {
         return;
       }
 
-      setRecording(true); 
+      setRecording(true);
       const pos = await Location.getCurrentPositionAsync({});
       const { latitude, longitude } = pos.coords;
 
@@ -158,19 +214,33 @@ const DashboardScreen = () => {
         async (location) => {
           try {
             if (location.coords.accuracy > 25) {
-              console.log(`Removed inaccurate location update with accuracy: ${location.coords.accuracy}m`);
+              console.log(
+                `Removed inaccurate location update with accuracy: ${location.coords.accuracy}m`
+              );
               return;
             }
 
             const { latitude, longitude, speed } = location.coords;
             const speedKmh = speed * 3.6;
-            await updateTripLocation(
-              currentTripId.current,
-              latitude,
-              longitude,
-              user.uid,
-              speedKmh
-            );
+
+            if (netInfo.isConnected) {
+              await updateTripLocation(
+                currentTripId.current,
+                latitude,
+                longitude,
+                user.uid,
+                speedKmh
+              );
+            } else {
+              console.log("No connection. Queueing location update.");
+              await queueLocationUpdate({
+                tripId: currentTripId.current,
+                latitude,
+                longitude,
+                userId: user.uid,
+                speedKmh,
+              });
+            }
           } catch (error) {
             console.error("Error updating trip location:", error);
           }
@@ -179,11 +249,16 @@ const DashboardScreen = () => {
     } catch (error) {
       console.error("Error starting recording:", error);
       Alert.alert("Error", "Could not start recording trip.");
-      setRecording(false); 
+      setRecording(false);
     }
   };
 
   const stopRecording = async () => {
+    if (locationSubscription.current) {
+      locationSubscription.current.remove();
+      locationSubscription.current = null;
+    }
+
     try {
       const { status: currentStatus } =
         await Location.getForegroundPermissionsAsync();
@@ -191,30 +266,50 @@ const DashboardScreen = () => {
         const { status: newStatus } =
           await Location.requestForegroundPermissionsAsync();
         if (newStatus !== "granted") {
-          Alert.alert("Permission Denied", "Location permission is required to stop the trip accurately.");
+          Alert.alert(
+            "Permission Denied",
+            "Location permission is required to stop the trip accurately."
+          );
           return;
         }
       }
       const lastPos = await Location.getCurrentPositionAsync({});
-      await endTrip(
-        currentTripId.current,
-        lastPos.coords.latitude,
-        lastPos.coords.longitude
-      );
-    } catch (error) {
-      console.error("Error stopping trip:", error);
-      Alert.alert("Error", "Could not save the end of your trip properly.");
-    } finally {
-      locationSubscription.current?.remove();
+      const { latitude, longitude } = lastPos.coords;
+      if (netInfo.isConnected) {
+        await endTrip(
+          currentTripId.current,
+          latitude,
+          longitude
+        );
+      } else {
+        console.log("Offline: Queuing END_TRIP action");
+        await queueEndTripAction({
+          type: "END_TRIP",
+          tripId: currentTripId.current,
+          latitude: latitude,
+          longitude: longitude,
+          timestamp: Date.now() 
+        });
+        Alert.alert("Offline", "Trip end queued and will sync when online.");
+      }
       locationSubscription.current = null;
       currentTripId.current = null;
       setRecording(false);
+
+    } catch (error) {
+      console.error("Error stopping trip:", error);
+      Alert.alert("Error", "Error stopping trip.");
     }
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Record your position</Text>
+      {!netInfo.isConnected && recording && (
+        <Text style={styles.offlineIndicator}>
+          No internet connection: Location data is being saved locally.
+        </Text>
+      )}
 
       <Text style={styles.label}>Select Fleet:</Text>
       {loadingFleets ? (
@@ -231,6 +326,7 @@ const DashboardScreen = () => {
             setOpen={setFleetOpen}
             setValue={setSelectedFleet}
             placeholder="Choose a fleet"
+            disabled={recording}
             style={styles.dropdown}
             dropDownContainerStyle={styles.dropdownContainer}
           />
@@ -254,7 +350,7 @@ const DashboardScreen = () => {
             placeholder={
               selectedFleet ? "Choose a vehicle" : "Select fleet first"
             }
-            disabled={!selectedFleet}
+            disabled={!selectedFleet || recording}
             style={styles.dropdown}
             dropDownContainerStyle={styles.dropdownContainer}
           />
@@ -293,6 +389,12 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 20,
     textAlign: "center",
+  },
+  offlineIndicator: {
+    textAlign: "center",
+    color: "red",
+    padding: 5,
+    marginBottom: 10,
   },
   label: {
     fontSize: 16,
