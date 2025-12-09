@@ -16,8 +16,10 @@ const RootLayout = () => {
           },
           headerTitleAlign: 'center',
           contentStyle: {
-            backgroundColor: '#ffffff',
-          }
+            backgroundColor: '#f4f6f9',
+          },
+          headerBackTitleVisible: true, 
+          headerBackTitle: "go back",
         }}
       >;
         <Stack.Screen name="index" options={{ title: 'Home' }} />

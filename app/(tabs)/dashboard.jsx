@@ -20,12 +20,13 @@ import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Button,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
 import DropDownPicker from "react-native-dropdown-picker";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const DashboardScreen = () => {
   const [fleets, setFleets] = useState([]);
@@ -140,7 +141,9 @@ const DashboardScreen = () => {
             currentTripId.current = activeTrip.tripId;
           }
         } else if (recording) {
-          console.log("Sync: No active trip on server, but app is recording. Stopping recording state.");
+          console.log(
+            "Sync: No active trip on server, but app is recording. Stopping recording state."
+          );
           setRecording(false);
           currentTripId.current = null;
         }
@@ -150,7 +153,13 @@ const DashboardScreen = () => {
           console.log(`${queuedUpdates.length} offline updates...`);
           await Promise.all(
             queuedUpdates.map((update) =>
-              updateTripLocation(update.tripId, update.latitude, update.longitude, update.userId, update.speedKmh)
+              updateTripLocation(
+                update.tripId,
+                update.latitude,
+                update.longitude,
+                update.userId,
+                update.speedKmh
+              )
             )
           );
           console.log("Offline data synced successfully.");
@@ -276,11 +285,7 @@ const DashboardScreen = () => {
       const lastPos = await Location.getCurrentPositionAsync({});
       const { latitude, longitude } = lastPos.coords;
       if (netInfo.isConnected) {
-        await endTrip(
-          currentTripId.current,
-          latitude,
-          longitude
-        );
+        await endTrip(currentTripId.current, latitude, longitude);
       } else {
         console.log("Offline: Queuing END_TRIP action");
         await queueEndTripAction({
@@ -288,14 +293,13 @@ const DashboardScreen = () => {
           tripId: currentTripId.current,
           latitude: latitude,
           longitude: longitude,
-          timestamp: Date.now() 
+          timestamp: Date.now(),
         });
         Alert.alert("Offline", "Trip end queued and will sync when online.");
       }
       locationSubscription.current = null;
       currentTripId.current = null;
       setRecording(false);
-
     } catch (error) {
       console.error("Error stopping trip:", error);
       Alert.alert("Error", "Error stopping trip.");
@@ -303,78 +307,103 @@ const DashboardScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Record your position</Text>
-      {!netInfo.isConnected && recording && (
-        <Text style={styles.offlineIndicator}>
-          No internet connection: Location data is being saved locally.
-        </Text>
-      )}
-
-      <Text style={styles.label}>Select Fleet:</Text>
-      {loadingFleets ? (
-        <ActivityIndicator size="small" color="#007bff" />
-      ) : (
-        <View style={{ zIndex: 2 }}>
-          <DropDownPicker
-            open={fleetOpen}
-            value={selectedFleet}
-            items={fleets.map((fleet) => ({
-              label: fleet.name,
-              value: fleet.id,
-            }))}
-            setOpen={setFleetOpen}
-            setValue={setSelectedFleet}
-            placeholder="Choose a fleet"
-            disabled={recording}
-            style={styles.dropdown}
-            dropDownContainerStyle={styles.dropdownContainer}
-          />
-        </View>
-      )}
-
-      <Text style={styles.label}>Select Vehicle:</Text>
-      {loadingVehicles ? (
-        <ActivityIndicator size="small" color="#007bff" />
-      ) : (
-        <View style={{ zIndex: 1 }}>
-          <DropDownPicker
-            open={vehicleOpen}
-            value={selectedVehicle}
-            items={vehicles.map((vehicle) => ({
-              label: `${vehicle.name} (${vehicle.registrationNumber})`,
-              value: vehicle.id,
-            }))}
-            setOpen={setVehicleOpen}
-            setValue={setSelectedVehicle}
-            placeholder={
-              selectedFleet ? "Choose a vehicle" : "Select fleet first"
-            }
-            disabled={!selectedFleet || recording}
-            style={styles.dropdown}
-            dropDownContainerStyle={styles.dropdownContainer}
-          />
-        </View>
-      )}
-
-      {selectedFleet && selectedVehicle && (
-        <View style={styles.infoBox}>
-          <Text style={styles.info}>
-            Fleet: {fleets.find((fleet) => fleet.id === selectedFleet)?.name}
+    <SafeAreaView style={styles.container}>
+      <View style={styles.contentContainer}>
+        <Text style={styles.title}>Record your position</Text>
+        {!netInfo.isConnected && recording && (
+          <Text style={styles.offlineIndicator}>
+            No internet connection: Location data is being saved locally.
           </Text>
-          <Text style={styles.info}>
-            Vehicle:{" "}
-            {vehicles.find((vehicle) => vehicle.id === selectedVehicle)?.name}
-          </Text>
+        )}
 
-          <Button
-            title={recording ? "Stop Recording" : "Start Recording"}
-            color={recording ? "red" : "#007bff"}
-            onPress={recording ? stopRecording : startRecording}
-          />
-        </View>
-      )}
-    </View>
+        <Text style={styles.label}>Select Fleet:</Text>
+        {loadingFleets ? (
+          <ActivityIndicator size="small" color="#007bff" />
+        ) : (
+          <View style={{ zIndex: 2 }}>
+            <DropDownPicker
+              open={fleetOpen}
+              value={selectedFleet}
+              items={fleets.map((fleet) => ({
+                label: fleet.name,
+                value: fleet.id,
+              }))}
+              setOpen={setFleetOpen}
+              setValue={setSelectedFleet}
+              placeholder="Choose a fleet"
+              disabled={recording}
+              style={styles.dropdown}
+              dropDownContainerStyle={styles.dropdownContainer}
+            />
+          </View>
+        )}
+
+        <Text style={styles.label}>Select Vehicle:</Text>
+        {loadingVehicles ? (
+          <ActivityIndicator size="small" color="#007bff" />
+        ) : (
+          <View style={{ zIndex: 1 }}>
+            <DropDownPicker
+              open={vehicleOpen}
+              value={selectedVehicle}
+              items={vehicles.map((vehicle) => ({
+                label: `${vehicle.name} (${vehicle.registrationNumber})`,
+                value: vehicle.id,
+              }))}
+              setOpen={setVehicleOpen}
+              setValue={setSelectedVehicle}
+              placeholder={
+                selectedFleet ? "Choose a vehicle" : "Select fleet first"
+              }
+              disabled={!selectedFleet || recording}
+              style={styles.dropdown}
+              dropDownContainerStyle={styles.dropdownContainer}
+            />
+          </View>
+        )}
+
+        {selectedFleet && selectedVehicle && (
+          <>
+            <View style={styles.infoBox}>
+              <View style={styles.infoRow}>
+                <Text style={styles.info}>
+                  Fleet:{" "}
+                  {fleets.find((fleet) => fleet.id === selectedFleet)?.name}
+                </Text>
+              </View>
+
+              <View style={styles.divider} />
+
+              <View style={styles.infoRow}>
+                <Text style={styles.info}>
+                  Vehicle:{" "}
+                  {
+                    vehicles.find((vehicle) => vehicle.id === selectedVehicle)
+                      ?.name
+                  }
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.bottomContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.button,
+                  recording
+                    ? { backgroundColor: "red" }
+                    : { backgroundColor: "#007bff" },
+                ]}
+                onPress={recording ? stopRecording : startRecording}
+              >
+                <Text style={styles.buttonText}>
+                  {recording ? "Stop Recording" : "Start Recording"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+      </View>
+    </SafeAreaView>
   );
 };
 
@@ -382,10 +411,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: "#fff",
+    backgroundColor: "#f4f6f9",
+  },
+  contentContainer: {
+    flex: 1,
+    padding: 24,
   },
   title: {
-    fontSize: 22,
+    fontSize: 28,
     fontWeight: "bold",
     marginBottom: 20,
     textAlign: "center",
@@ -399,22 +432,72 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     marginBottom: 8,
+    fontWeight: "600",
   },
   dropdown: {
-    marginBottom: 20,
-    borderColor: "#aaa",
+    marginBottom: 5,
+    borderColor: "transparent",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    height: 55,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
   },
   dropdownContainer: {
-    borderColor: "#aaa",
+    borderColor: "#eaeaea",
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    elevation: 5,
   },
   infoBox: {
-    marginTop: 20,
+    marginTop: 30,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 20,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+  },
+  infoRow: {
+    flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    paddingVertical: 8,
   },
   info: {
     fontSize: 16,
+    fontWeight: "600",
     color: "#333",
+    flex: 1,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#f0f0f0",
+    marginVertical: 4,
+  },
+  bottomContainer: {
+    marginTop: "auto",
+  },
+  button: {
+    borderRadius: 30,
+    paddingVertical: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 4,
+    shadowColor: "#007bff",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  buttonText: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "700",
   },
 });
 

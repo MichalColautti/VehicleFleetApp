@@ -5,7 +5,7 @@ import NotificationsButton from "@/components/NotificationsButton";
 import { Tabs, useRouter } from "expo-router";
 import { getAuth, signOut } from "firebase/auth";
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, TouchableOpacity } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { getFleetsForUserWithPermission } from "@/services/fleetMembershipService";
 
@@ -62,11 +62,28 @@ const MainLayout = () => {
         },
         headerTitleAlign: "center",
         tabBarActiveTintColor: "#007bff",
-        headerRight: () => <NotificationsButton />,
-        headerLeft: () => (
+        tabBarStyle: {
+          borderTopWidth: 1,
+          borderTopColor: "#F3F4F6",
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.05,
+          shadowRadius: 4,
+          paddingTop: 8,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: "500",
+          marginBottom: 0,
+        },
+        headerRight: () => (
           <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
             <Text style={styles.logoutButtonText}>Logout</Text>
           </TouchableOpacity>
+        ),
+        headerLeft: () => (
+          <View style={styles.headerLeftContainer}>
+              <NotificationsButton />
+          </View>
         ),
       }}
     >
@@ -114,15 +131,22 @@ const MainLayout = () => {
 };
 
 const styles = StyleSheet.create({
-  notificationsIcon: {
-    marginRight: 15,
+  headerLeftContainer: {
+    marginLeft: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   logoutButton: {
-    marginLeft: 15,
+    marginRight: 15,
+    backgroundColor: '#303638',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
   },
   logoutButtonText: {
-    color: "red",
+    color: "#fff",
     fontSize: 16,
+    fontWeight: "500",
   },
 });
 
