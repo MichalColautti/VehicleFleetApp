@@ -25,7 +25,7 @@ const FleetList = ({
     : undefined;
   return (
     <SwipeListView
-      style={[styles.container, { maxHeight: maxFleets * 80 }]}
+      style={[styles.container, { maxHeight: maxFleets * 79 }]}
       data={fleets}
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => (
