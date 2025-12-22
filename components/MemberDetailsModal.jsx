@@ -1,9 +1,14 @@
 import { getActiveTripForUser } from "@/services/locationService";
-import { getRoleById, hasPermissions } from "@/services/roleService";
+import {
+  getRoleById,
+  getRoles,
+  hasPermissions,
+  updateFleetMemberRole,
+} from "@/services/roleService";
 import { useRouter } from "expo-router";
 import { getAuth } from "firebase/auth";
 import { useEffect, useState } from "react";
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 const MemberDetailsModal = ({
   memberModalVisible,
@@ -12,6 +17,7 @@ const MemberDetailsModal = ({
   handleDeleteMember,
   handleDeleteInvite,
   fleet,
+  onMemberUpdated,
 }) => {
   const auth = getAuth();
   const currentUser = auth.currentUser;
@@ -23,6 +29,10 @@ const MemberDetailsModal = ({
   const [hasActiveTrip, setHasActiveTrip] = useState(false);
   const [canViewPosition, setCanViewPosition] = useState(false);
   const [canViewHistory, setCanViewHistory] = useState(false);
+  const [canUpdateRole, setCanUpdateRole] = useState(false);
+  const [isEditingRole, setIsEditingRole] = useState(false);
+  const [allRoles, setAllRoles] = useState([]);
+  const [currentRoleId, setCurrentRoleId] = useState(null);
 
   useEffect(() => {
     const fetchRole = async () => {
@@ -32,6 +42,7 @@ const MemberDetailsModal = ({
       } else {
         setRoleName("No role");
       }
+      setCurrentRoleId(selectedMember?.roleId || null);
     };
 
     const checkForActiveTrip = async () => {
@@ -48,6 +59,18 @@ const MemberDetailsModal = ({
     fetchRole();
     checkForActiveTrip();
   }, [selectedMember]);
+
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const roles = await getRoles();
+        setAllRoles(roles);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    fetchRoles();
+  }, []);
 
   const handleDelete = async () => {
     if (!selectedMember) return;
@@ -68,15 +91,18 @@ const MemberDetailsModal = ({
           hasDeletePermission,
           hasViewPositionPermission,
           hasViewHistoryPermission,
+          hasUpdatePermission,
         ] = await Promise.all([
           hasPermissions(currentUser.uid, fleet.id, "delete_member"),
           hasPermissions(currentUser.uid, fleet.id, "view_driver_position"),
           hasPermissions(currentUser.uid, fleet.id, "view_trip_history"),
+          hasPermissions(currentUser.uid, fleet.id, "update_member"),
         ]);
 
         setCanDeleteMember(hasDeletePermission);
         setCanViewPosition(hasViewPositionPermission);
         setCanViewHistory(hasViewHistoryPermission);
+        setCanUpdateRole(hasUpdatePermission);
       }
       setIsCheckingPermission(false);
     };
@@ -111,6 +137,21 @@ const MemberDetailsModal = ({
     });
   };
 
+  const handleRoleUpdate = async (newRoleId) => {
+    if (!selectedMember?.membershipId) return;
+    try {
+      await updateFleetMemberRole(selectedMember.membershipId, newRoleId);
+      const role = allRoles.find((r) => r.id === newRoleId);
+      if (role) setRoleName(role.name);
+      setIsEditingRole(false);
+      setCurrentRoleId(newRoleId);
+      if (onMemberUpdated) onMemberUpdated();
+      Alert.alert("Success", "Role updated successfully");
+    } catch (e) {
+      Alert.alert("Error", "Failed to update role");
+    }
+  };
+
   return (
     <Modal
       visible={memberModalVisible && !isCheckingPermission}
@@ -126,14 +167,38 @@ const MemberDetailsModal = ({
               <Text style={styles.memberDetails}>
                 Email: {selectedMember.email}
               </Text>
-              <Text style={styles.memberDetails}>Role: {roleName}</Text>
+              {!isEditingRole ? (
+                <Text style={styles.memberDetails}>Role: {roleName}</Text>
+              ) : (
+                <View style={styles.roleSelectionContainer}>
+                  <Text style={styles.sectionTitle}>Select new role:</Text>
+                  <ScrollView style={{ maxHeight: 150 }}>
+                    {allRoles
+                      .filter((role) => role.id !== "owner")
+                      .map((role) => (
+                      <TouchableOpacity
+                        key={role.id}
+                        disabled={role.id === currentRoleId}
+                        style={[
+                          styles.roleOption,
+                          role.id === currentRoleId && styles.selectedRole,
+                          role.id === currentRoleId && { opacity: 0.5 },
+                        ]}
+                        onPress={() => handleRoleUpdate(role.id)}
+                      >
+                        <Text>{role.name}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
               <Text style={styles.memberDetails}>
                 Status: {selectedMember.status}
               </Text>
             </>
           )}
 
-          {selectedMember && selectedMember.status === "accepted" && (
+          {selectedMember && selectedMember.status === "accepted" && !isEditingRole && (
             <>
               {canViewHistory && (
                 <TouchableOpacity
@@ -150,11 +215,20 @@ const MemberDetailsModal = ({
                   <Text style={styles.actionButtonText}>Show on map</Text>
                 </TouchableOpacity>
               )}
+              {canUpdateRole && selectedMember.roleId !== "owner" && (
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={() => setIsEditingRole(true)}
+                >
+                  <Text style={styles.actionButtonText}>Change Role</Text>
+                </TouchableOpacity>
+              )}
             </>
           )}
 
           {selectedMember &&
             selectedMember.roleId !== "owner" &&
+            !isEditingRole &&
             canDeleteMember && (
               <TouchableOpacity
                 style={styles.deleteButton}
@@ -166,7 +240,7 @@ const MemberDetailsModal = ({
 
           <TouchableOpacity
             style={styles.cancelButton}
-            onPress={handleCloseMember}
+            onPress={isEditingRole ? () => setIsEditingRole(false) : handleCloseMember}
           >
             <Text style={styles.cancelButtonText}>Close</Text>
           </TouchableOpacity>
@@ -239,6 +313,27 @@ const styles = StyleSheet.create({
   deleteButtonText: {
     fontSize: 16,
     color: "#000000",
+  },
+  roleSelectionContainer: {
+    marginVertical: 10,
+    borderWidth: 1,
+    borderColor: "#eee",
+    borderRadius: 5,
+  },
+  roleOption: {
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+    alignItems: "center",
+  },
+  selectedRole: {
+    backgroundColor: "#e6f7ff",
+  },
+  sectionTitle: {
+    fontWeight: "bold",
+    marginTop: 10,
+    marginBottom: 5,
+    textAlign: "center",
   },
 });
 

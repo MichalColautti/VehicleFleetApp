@@ -5,6 +5,7 @@ import {
   getDoc,
   getDocs,
   query,
+  updateDoc,
   where,
 } from "firebase/firestore";
 
@@ -29,13 +30,13 @@ export const getRolePermissions = async (roleId) => {
 };
 
 export const hasPermissions = async (userId, fleetId, permission) => {
-  const membershipsSnap = await getDocs(
-    query(
-      collection(db, "fleet_memberships"),
-      where("userId", "==", userId),
-      where("fleetId", "==", fleetId)
-    )
+  const membershipsQuery = query(
+    collection(db, "fleet_memberships"),
+    where("userId", "==", userId),
+    where("fleetId", "==", fleetId),
+    where("status", "==", "accepted")
   );
+  const membershipsSnap = await getDocs(membershipsQuery);
 
   if (membershipsSnap.empty) return false;
 
@@ -54,4 +55,9 @@ export const getRoleById = async (roleId) => {
   } else {
     return null;
   }
+};
+
+export const updateFleetMemberRole = async (membershipId, newRoleId) => {
+  const membershipRef = doc(db, "fleet_memberships", membershipId);
+  await updateDoc(membershipRef, { roleId: newRoleId });
 };
