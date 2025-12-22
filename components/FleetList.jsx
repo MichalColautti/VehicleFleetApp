@@ -9,6 +9,7 @@ const FleetList = ({
   handleDeleteFleet,
   refreshing,
   handleRefresh,
+  maxFleets = 3,
 }) => {
   const renderHiddenItem = handleDeleteFleet
     ? ({ item }) => (
@@ -24,7 +25,7 @@ const FleetList = ({
     : undefined;
   return (
     <SwipeListView
-      style={styles.container}
+      style={[styles.container, { maxHeight: maxFleets * 80 }]}
       data={fleets}
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => (
@@ -45,7 +46,6 @@ const FleetList = ({
 
 const styles = StyleSheet.create({
   container: {
-    maxHeight: 240,
   },
   noFleetsText: {
     textAlign: "center",

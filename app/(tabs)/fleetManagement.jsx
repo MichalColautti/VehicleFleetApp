@@ -165,6 +165,7 @@ const FleetManagementScreen = () => {
           handleDeleteFleet={null}
           refreshing={refreshing}
           handleRefresh={handleRefresh}
+          maxFleets={2}
         />
       )}
     </View>
