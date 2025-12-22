@@ -7,12 +7,16 @@ import { getAuth, signOut } from "firebase/auth";
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
+import usePushNotifications from "@/hooks/usePushNotifications";
 import { getFleetsForUserWithPermission } from "@/services/fleetMembershipService";
+import { saveExpoPushToken } from "@/services/userService";
 
 const MainLayout = () => {
   const auth = getAuth();
   const user = auth.currentUser;
   const router = useRouter();
+  const { expoPushToken } = usePushNotifications();
+
   const [fleetsWhereRecordPosition, setFleetsWhereRecordPosition] = useState(
     []
   );
@@ -21,6 +25,12 @@ const MainLayout = () => {
     await signOut(auth);
     router.replace("/");
   };
+
+  useEffect(() => {
+    if (user && expoPushToken) {
+      saveExpoPushToken(user.uid, expoPushToken);
+    }
+  }, [user, expoPushToken]);
 
   useEffect(() => {
     if (!user) return;

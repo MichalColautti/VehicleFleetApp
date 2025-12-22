@@ -29,7 +29,7 @@ const MembersList = ({ members, handleDeleteMember, handleDeleteInvite, fleet })
         {members && members.length > 0 ? (
           members.map((member) => (
             <TouchableOpacity
-              key={member.membershipId}
+              key={member.membershipId || member.notificationId}
               style={styles.memberItem}
               onPress={() => handleOpenMember(member)}
             >

@@ -1,5 +1,6 @@
 import NitificationsIcon from "@/assets/icons/notifications.svg";
 import Notifications from "@/components/Notifications";
+import { appEvents } from "@/events/appEvents";
 import { getPendingInvites } from "@/services/fleetMembershipService";
 import { getAuth } from "firebase/auth";
 import { useEffect, useState } from "react";
@@ -20,7 +21,19 @@ const NotificationsButton = () => {
 
   useEffect(() => {
     fetchNotificationCount();
+    const interval = setInterval(fetchNotificationCount, 10000);
+
+    return () => clearInterval(interval);
   }, [currentUser]);
+
+  useEffect(() => {
+    const openModal = () => setVisible(true);
+    appEvents.on("openNotificationsModal", openModal);
+
+    return () => {
+      appEvents.off("openNotificationsModal", openModal);
+    };
+  }, []);
 
   return (
     <>

@@ -27,6 +27,20 @@ export const inviteUserToFleet = async (fleetId, userId, roleId) => {
     timestamp: new Date(),
     message: `You have been invited to fleet "${fleetName}" as "${roleName}"`,
   });
+
+  const userRef = doc(db, "users", userId);
+  const userSnap = await getDoc(userRef);
+  if (userSnap.exists()) {
+    const token = userSnap.data().expoPushToken;
+    if (token) {
+      await sendPushNotification(
+        token,
+        "Fleet Invitation",
+        `You have been invited to fleet "${fleetName}"`,
+        { url: "/notifications" }
+      );
+    }
+  }
 };
 
 export const deleteFleetMember = async (membershipId) => {
@@ -154,17 +168,17 @@ export const getPendingInvites = async (userId) => {
   );
 
   const invites = [];
-  for (const notificaitonDoc of notificationsSnap.docs) {
+  for (const notificationDoc of notificationsSnap.docs) {
     const fleetDoc = await getDoc(
-      doc(db, "fleets", notificaitonDoc.data().fleetId)
+      doc(db, "fleets", notificationDoc.data().fleetId)
     );
-    const notificationData = notificaitonDoc.data();
+    const notificationData = notificationDoc.data();
     if (fleetDoc.exists()) {
       invites.push({
-        notificationId: notificaitonDoc.id,
+        notificationId: notificationDoc.id,
         fleetId: fleetDoc.id,
         fleetName: fleetDoc.data().name,
-        roleId: notificaitonDoc.data().roleId,
+        roleId: notificationDoc.data().roleId,
         message: notificationData.message,
         timestamp: notificationData.timestamp.toDate(),
       });
@@ -188,3 +202,23 @@ export const rejectInvite = async (notificationId) => {
   const notificationRef = doc(db, "notifications", notificationId);
   await deleteDoc(notificationRef);
 };
+
+async function sendPushNotification(expoPushToken, title, body, data = {}) {
+  const message = {
+    to: expoPushToken,
+    sound: "default",
+    title: title,
+    body: body,
+    data: data,
+  };
+
+  await fetch("https://exp.host/--/api/v2/push/send", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Accept-encoding": "gzip, deflate",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(message),
+  });
+}

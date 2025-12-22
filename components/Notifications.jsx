@@ -91,7 +91,7 @@ const Notifications = ({fetchNotificationCount}) => {
         ) : (
           <FlatList
             data={invites}
-            keyExtractor={(item) => item}
+            keyExtractor={(item) => item.notificationId}
             renderItem={({ item }) => (
               <InviteItem
                 invite={item}
@@ -132,8 +132,8 @@ const styles = StyleSheet.create({
     borderColor: "#000000",
     borderWidth: 1,
     justifyContent: "center",
-    minHeight: 225,
-    maxHeight: 225,
+    minHeight: 260,
+    maxHeight: 260,
   },
   loading: {
     padding: 50,
