@@ -7,6 +7,7 @@ import {
   getDoc,
   getDocs,
   query,
+  setDoc,
   where,
 } from "firebase/firestore";
 import { getFleetById } from "./fleetService";
@@ -210,7 +211,9 @@ export const notifySpeeding = async (fleetId, driverName, speed, limit) => {
 
   for (const member of members) {
     const role = await getRoleById(member.roleId);
-    if (role?.permissions?.includes("get_notified_speeding")) {
+    const notifyEnabled = member.settings?.notifySpeeding !== false;
+
+    if (role?.permissions?.includes("get_notified_speeding") && notifyEnabled) {
       const userRef = doc(db, "users", member.userId);
       const userSnap = await getDoc(userRef);
       if (userSnap.exists()) {
@@ -226,6 +229,15 @@ export const notifySpeeding = async (fleetId, driverName, speed, limit) => {
       }
     }
   }
+};
+
+export const updateFleetMemberSetting = async (membershipId, key, value) => {
+  const membershipRef = doc(db, "fleet_memberships", membershipId);
+  await setDoc(
+    membershipRef,
+    { settings: { [key]: value } },
+    { merge: true }
+  );
 };
 
 async function sendPushNotification(expoPushToken, title, body, data = {}) {

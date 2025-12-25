@@ -7,6 +7,7 @@ import {
   getFleetMembersIncludingPending,
   inviteUserToFleet,
   rejectInvite,
+  updateFleetMemberSetting,
 } from "@/services/fleetMembershipService";
 import { getFleetById } from "@/services/fleetService";
 import {
@@ -23,6 +24,7 @@ import {
   ActivityIndicator,
   Alert,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -49,6 +51,10 @@ const FleetDetailsScreen = () => {
 
   const [canInviteMember, setCanInviteMember] = useState(false);
   const [isCheckingInviteMemberPermission, setIsCheckingInviteMemberPermission] = useState(true);
+
+  const [notifySpeeding, setNotifySpeeding] = useState(true);
+  const [canReceiveSpeedingAlerts, setCanReceiveSpeedingAlerts] = useState(false);
+  const [currentUserMembershipId, setCurrentUserMembershipId] = useState(null);
 
   const fetchFleetData = async () => {
     try {
@@ -177,6 +183,31 @@ const FleetDetailsScreen = () => {
     }
   };
 
+  const toggleSpeedingNotification = async (value) => {
+    setNotifySpeeding(value);
+    try {
+      await updateFleetMemberSetting(currentUserMembershipId, "notifySpeeding", value);
+    } catch (error) {
+      Alert.alert("Error", "Failed to update setting");
+      setNotifySpeeding(!value);
+    }
+  };
+
+  useEffect(() => {
+    const checkSpeedingSettings = async () => {
+      if (members.length > 0 && currentUser && fleet?.id) {
+        const membership = members.find(m => m.userId === currentUser.uid && m.status === 'accepted');
+        if (membership) {
+          setCurrentUserMembershipId(membership.membershipId);
+          setNotifySpeeding(membership.settings?.notifySpeeding !== false);
+          const hasPermission = await hasPermissions(currentUser.uid, fleet.id, "get_notified_speeding");
+          setCanReceiveSpeedingAlerts(hasPermission);
+        }
+      }
+    };
+    checkSpeedingSettings();
+  }, [members, currentUser, fleet]);
+
   useEffect(() => {
     const checkPermission = async () => {
       if (fleet?.id && currentUser?.uid) {
@@ -218,6 +249,18 @@ const FleetDetailsScreen = () => {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{fleet?.name}</Text>
+
+      {canReceiveSpeedingAlerts && (
+        <View style={styles.settingRow}>
+          <Text style={styles.settingText}>Receive speeding notifications</Text>
+          <Switch
+            trackColor={{ false: "#cecdcdff", true: "#9acbffff" }}
+            thumbColor={notifySpeeding ? "#007bff" : "#fff"}
+            onValueChange={toggleSpeedingNotification}
+            value={notifySpeeding}
+          />
+        </View>
+      )}
 
       <MembersList
         members={members}
@@ -313,6 +356,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#aaaaaa",
     marginLeft: 10,
+  },
+  settingRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 15,
+    paddingHorizontal: 10,
+  },
+  settingText: {
+    fontSize: 16,
   },
 });
 
