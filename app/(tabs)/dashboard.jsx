@@ -1,11 +1,15 @@
 import { appEvents } from "@/events/appEvents";
-import { getFleetsForUserWithPermission } from "@/services/fleetMembershipService";
+import {
+  getFleetsForUserWithPermission,
+  notifySpeeding,
+} from "@/services/fleetMembershipService";
 import { getFleetVehicles } from "@/services/fleetVechicleService";
 import {
   endTrip,
   getActiveTripForUser,
+  getSpeedLimit,
   startTrip,
-  updateTripLocation,
+  updateTripLocation
 } from "@/services/locationService";
 import {
   getAndClearQueuedActions,
@@ -45,10 +49,48 @@ const DashboardScreen = () => {
   const locationSubscription = useRef(null);
 
   const currentTripId = useRef(null);
+  const lastNotificationTime = useRef(0);
 
   const auth = getAuth();
   const user = auth.currentUser;
   const netInfo = useNetInfo();
+
+  const processLocationUpdate = async (location, tripId, fleetId) => {
+    try {
+      if (location.coords.accuracy > 25) {
+        return;
+      }
+
+      const { latitude, longitude, speed } = location.coords;
+      const speedKmh = (speed || 0) * 3.6;
+
+      if (speedKmh > 10) {
+        const limit = await getSpeedLimit(latitude, longitude);
+        const limitVal = parseInt(limit, 10);
+        if (!isNaN(limitVal) && limitVal > 0 && speedKmh > limitVal + 5) {
+          const now = Date.now();
+          if (now - lastNotificationTime.current > 5 * 60 * 1000) {
+            lastNotificationTime.current = now;
+            await notifySpeeding(fleetId, user.email, Math.round(speedKmh), limitVal);
+          }
+        }
+      }
+
+      if (netInfo.isConnected) {
+        await updateTripLocation(
+          tripId,
+          latitude,
+          longitude,
+          user.uid,
+          speedKmh
+        );
+      } else {
+        await queueLocationUpdate({ tripId, latitude, longitude, userId: user.uid, speedKmh });
+      }
+    } catch (error) {
+      console.error("Error processing location update:", error);
+    }
+  };
 
   useEffect(() => {
     const fetchFleets = async () => {
@@ -94,17 +136,7 @@ const DashboardScreen = () => {
             accuracy: Location.Accuracy.High,
             timeInterval: 10000,
           },
-          async (location) => {
-            const { latitude, longitude, speed } = location.coords;
-            const speedKmh = speed * 3.6;
-            await updateTripLocation(
-              currentTripId.current,
-              latitude,
-              longitude,
-              user.uid,
-              speedKmh
-            );
-          }
+          (location) => processLocationUpdate(location, activeTrip.tripId, activeTrip.fleetId)
         );
       }
     };
@@ -220,40 +252,7 @@ const DashboardScreen = () => {
           timeInterval: 10000,
           //distanceInterval: 10, // refresh every 10 meters
         },
-        async (location) => {
-          try {
-            if (location.coords.accuracy > 25) {
-              console.log(
-                `Removed inaccurate location update with accuracy: ${location.coords.accuracy}m`
-              );
-              return;
-            }
-
-            const { latitude, longitude, speed } = location.coords;
-            const speedKmh = speed * 3.6;
-
-            if (netInfo.isConnected) {
-              await updateTripLocation(
-                currentTripId.current,
-                latitude,
-                longitude,
-                user.uid,
-                speedKmh
-              );
-            } else {
-              console.log("No connection. Queueing location update.");
-              await queueLocationUpdate({
-                tripId: currentTripId.current,
-                latitude,
-                longitude,
-                userId: user.uid,
-                speedKmh,
-              });
-            }
-          } catch (error) {
-            console.error("Error updating trip location:", error);
-          }
-        }
+        (location) => processLocationUpdate(location, tripId, selectedFleet)
       );
     } catch (error) {
       console.error("Error starting recording:", error);

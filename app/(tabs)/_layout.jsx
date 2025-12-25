@@ -4,11 +4,10 @@ import MapIcon from "@/assets/icons/map.svg";
 import NotificationsButton from "@/components/NotificationsButton";
 import { Tabs, useRouter } from "expo-router";
 import { getAuth, signOut } from "firebase/auth";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import usePushNotifications from "@/hooks/usePushNotifications";
-import { getFleetsForUserWithPermission } from "@/services/fleetMembershipService";
 import { saveExpoPushToken } from "@/services/userService";
 
 const MainLayout = () => {
@@ -16,10 +15,6 @@ const MainLayout = () => {
   const user = auth.currentUser;
   const router = useRouter();
   const { expoPushToken } = usePushNotifications();
-
-  const [fleetsWhereRecordPosition, setFleetsWhereRecordPosition] = useState(
-    []
-  );
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -31,35 +26,6 @@ const MainLayout = () => {
       saveExpoPushToken(user.uid, expoPushToken);
     }
   }, [user, expoPushToken]);
-
-  useEffect(() => {
-    if (!user) return;
-
-    (async () => {
-      const fleets = await getFleetsForUserWithPermission(
-        user.uid,
-        "record_position"
-      );
-      //console.log("Fleets where user can record position:", fleets);
-      setFleetsWhereRecordPosition(fleets.map((f) => f.id));
-    })();
-  }, [user]);
-
-  useEffect(() => {
-    if (!user || fleetsWhereRecordPosition.length === 0) return;
-
-    let locationSubscription;
-
-    const startLocationTracking = async () => {
-      return;
-    };
-
-    startLocationTracking();
-
-    return () => {
-      if (locationSubscription) locationSubscription.remove();
-    };
-  }, [user, fleetsWhereRecordPosition]);
 
   return (
     <Tabs

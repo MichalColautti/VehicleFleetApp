@@ -203,6 +203,31 @@ export const rejectInvite = async (notificationId) => {
   await deleteDoc(notificationRef);
 };
 
+export const notifySpeeding = async (fleetId, driverName, speed, limit) => {
+  const fleet = await getFleetById(fleetId);
+  const fleetName = fleet?.name || "Fleet";
+  const members = await getFleetMembers(fleetId);
+
+  for (const member of members) {
+    const role = await getRoleById(member.roleId);
+    if (role?.permissions?.includes("get_notified_speeding")) {
+      const userRef = doc(db, "users", member.userId);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        const token = userSnap.data().expoPushToken;
+        if (token) {
+          await sendPushNotification(
+            token,
+            "Speed Alert",
+            `Driver ${driverName} exceeded speed limit (${speed} km/h, limit: ${limit} km/h) in ${fleetName}`,
+            { url: `/fleetDetails/${fleetId}` }
+          );
+        }
+      }
+    }
+  }
+};
+
 async function sendPushNotification(expoPushToken, title, body, data = {}) {
   const message = {
     to: expoPushToken,
