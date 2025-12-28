@@ -17,8 +17,10 @@ import {
   queueEndTripAction,
   queueLocationUpdate,
 } from "@/services/offlineService";
-import { useNetInfo } from "@react-native-community/netinfo";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import NetInfo, { useNetInfo } from "@react-native-community/netinfo";
 import * as Location from "expo-location";
+import * as TaskManager from "expo-task-manager";
 import { getAuth } from "firebase/auth";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -31,6 +33,53 @@ import {
 } from "react-native";
 import DropDownPicker from "react-native-dropdown-picker";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+const LOCATION_TASK_NAME = "background-location-task";
+let lastNotificationTime = 0;
+
+TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
+  if (error) {
+    console.error("Background location task error:", error);
+    return;
+  }
+  if (data) {
+    const { locations } = data;
+    const location = locations[locations.length - 1];
+    if (!location) return;
+
+    try {
+      const tripData = await AsyncStorage.getItem("current_trip");
+      if (!tripData) return;
+      const { tripId, fleetId, userId, userEmail } = JSON.parse(tripData);
+
+      if (location.coords.accuracy > 25) return;
+
+      const { latitude, longitude, speed } = location.coords;
+      const speedKmh = (speed || 0) * 3.6;
+
+      if (speedKmh > 10) {
+        const limit = await getSpeedLimit(latitude, longitude);
+        const limitVal = parseInt(limit, 10);
+        if (!isNaN(limitVal) && limitVal > 0 && speedKmh > limitVal + 5) {
+          const now = Date.now();
+          if (now - lastNotificationTime > 5 * 60 * 1000) {
+            lastNotificationTime = now;
+            await notifySpeeding(fleetId, userEmail, Math.round(speedKmh), limitVal);
+          }
+        }
+      }
+
+      const netState = await NetInfo.fetch();
+      if (netState.isConnected) {
+        await updateTripLocation(tripId, latitude, longitude, userId, speedKmh);
+      } else {
+        await queueLocationUpdate({ tripId, latitude, longitude, userId, speedKmh });
+      }
+    } catch (err) {
+      console.error("Task Error:", err);
+    }
+  }
+});
 
 const DashboardScreen = () => {
   const [fleets, setFleets] = useState([]);
@@ -46,51 +95,12 @@ const DashboardScreen = () => {
   const [loadingVehicles, setLoadingVehicles] = useState(false);
 
   const [recording, setRecording] = useState(false);
-  const locationSubscription = useRef(null);
 
   const currentTripId = useRef(null);
-  const lastNotificationTime = useRef(0);
 
   const auth = getAuth();
   const user = auth.currentUser;
   const netInfo = useNetInfo();
-
-  const processLocationUpdate = async (location, tripId, fleetId) => {
-    try {
-      if (location.coords.accuracy > 25) {
-        return;
-      }
-
-      const { latitude, longitude, speed } = location.coords;
-      const speedKmh = (speed || 0) * 3.6;
-
-      if (speedKmh > 10) {
-        const limit = await getSpeedLimit(latitude, longitude);
-        const limitVal = parseInt(limit, 10);
-        if (!isNaN(limitVal) && limitVal > 0 && speedKmh > limitVal + 5) {
-          const now = Date.now();
-          if (now - lastNotificationTime.current > 5 * 60 * 1000) {
-            lastNotificationTime.current = now;
-            await notifySpeeding(fleetId, user.email, Math.round(speedKmh), limitVal);
-          }
-        }
-      }
-
-      if (netInfo.isConnected) {
-        await updateTripLocation(
-          tripId,
-          latitude,
-          longitude,
-          user.uid,
-          speedKmh
-        );
-      } else {
-        await queueLocationUpdate({ tripId, latitude, longitude, userId: user.uid, speedKmh });
-      }
-    } catch (error) {
-      console.error("Error processing location update:", error);
-    }
-  };
 
   useEffect(() => {
     const fetchFleets = async () => {
@@ -125,27 +135,38 @@ const DashboardScreen = () => {
 
       const activeTrip = await getActiveTripForUser(user.uid);
       if (activeTrip) {
-        console.log("Active trip found, resuming...", activeTrip);
         setSelectedFleet(activeTrip.fleetId);
         setSelectedVehicle(activeTrip.vehicleId);
         currentTripId.current = activeTrip.tripId;
         setRecording(true);
 
-        locationSubscription.current = await Location.watchPositionAsync(
-          {
+        await AsyncStorage.setItem("current_trip", JSON.stringify({
+          tripId: activeTrip.tripId,
+          fleetId: activeTrip.fleetId,
+          userId: user.uid,
+          userEmail: user.email
+        }));
+
+        const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
+        if (!hasStarted) {
+          await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
             accuracy: Location.Accuracy.High,
             timeInterval: 10000,
-          },
-          (location) => processLocationUpdate(location, activeTrip.tripId, activeTrip.fleetId)
-        );
+            distanceInterval: 10,
+            showsBackgroundLocationIndicator: true,
+            pausesUpdatesAutomatically: false,
+            activityType: Location.ActivityType.AutomotiveNavigation,
+            foregroundService: {
+              notificationTitle: "Vehicle Fleet",
+              notificationBody: "Recording your trip in background...",
+            },
+          });
+        }
       }
     };
 
     checkForActiveTrip();
 
-    return () => {
-      locationSubscription.current?.remove();
-    };
   }, [user, loadingFleets]);
 
   // Synchronize offline data when connection is restored
@@ -232,6 +253,12 @@ const DashboardScreen = () => {
         Alert.alert("Permission Denied", "No access to location.");
         return;
       }
+      
+      const { status: bgStatus } = await Location.requestBackgroundPermissionsAsync();
+      if (bgStatus !== "granted") {
+        Alert.alert("Permission Denied", "Background location permission is required for trip recording.");
+        return;
+      }
 
       setRecording(true);
       const pos = await Location.getCurrentPositionAsync({});
@@ -246,14 +273,25 @@ const DashboardScreen = () => {
       );
       currentTripId.current = tripId;
 
-      locationSubscription.current = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.High,
-          timeInterval: 10000,
-          //distanceInterval: 10, // refresh every 10 meters
+      await AsyncStorage.setItem("current_trip", JSON.stringify({
+        tripId,
+        fleetId: selectedFleet,
+        userId: user.uid,
+        userEmail: user.email
+      }));
+
+      await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
+        accuracy: Location.Accuracy.High,
+        timeInterval: 10000,
+        distanceInterval: 10,
+        showsBackgroundLocationIndicator: true,
+        pausesUpdatesAutomatically: false,
+        activityType: Location.ActivityType.AutomotiveNavigation,
+        foregroundService: {
+          notificationTitle: "Vehicle Fleet",
+          notificationBody: "Recording your trip...",
         },
-        (location) => processLocationUpdate(location, tripId, selectedFleet)
-      );
+      });
     } catch (error) {
       console.error("Error starting recording:", error);
       Alert.alert("Error", "Could not start recording trip.");
@@ -262,9 +300,14 @@ const DashboardScreen = () => {
   };
 
   const stopRecording = async () => {
-    if (locationSubscription.current) {
-      locationSubscription.current.remove();
-      locationSubscription.current = null;
+    try {
+      const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
+      if (hasStarted) {
+        await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
+      }
+      await AsyncStorage.removeItem("current_trip");
+    } catch (err) {
+      console.log("Error stopping updates", err);
     }
 
     try {
@@ -296,7 +339,6 @@ const DashboardScreen = () => {
         });
         Alert.alert("Offline", "Trip end queued and will sync when online.");
       }
-      locationSubscription.current = null;
       currentTripId.current = null;
       setRecording(false);
     } catch (error) {

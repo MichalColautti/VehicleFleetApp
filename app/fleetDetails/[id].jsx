@@ -23,6 +23,7 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  AppState,
   StyleSheet,
   Switch,
   Text,
@@ -77,6 +78,16 @@ const FleetDetailsScreen = () => {
     if (id) {
       fetchFleetData();
     }
+
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "active" && id) {
+        fetchFleetData();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
   }, [id]);
 
   const handleInvite = async () => {
