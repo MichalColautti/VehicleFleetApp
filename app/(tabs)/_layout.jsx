@@ -2,13 +2,13 @@ import DashboardIcon from "@/assets/icons/dashboard.svg";
 import FleetIcon from "@/assets/icons/fleet.svg";
 import MapIcon from "@/assets/icons/map.svg";
 import NotificationsButton from "@/components/NotificationsButton";
+import usePushNotifications from "@/hooks/usePushNotifications";
+import { saveExpoPushToken } from "@/services/userService";
 import { Tabs, useRouter } from "expo-router";
 import { getAuth, signOut } from "firebase/auth";
 import { useEffect } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-
-import usePushNotifications from "@/hooks/usePushNotifications";
-import { saveExpoPushToken } from "@/services/userService";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const MainLayout = () => {
   const auth = getAuth();
@@ -26,6 +26,8 @@ const MainLayout = () => {
       saveExpoPushToken(user.uid, expoPushToken);
     }
   }, [user, expoPushToken]);
+
+  const insets = useSafeAreaInsets();
 
   return (
     <Tabs
@@ -45,6 +47,8 @@ const MainLayout = () => {
           shadowOpacity: 0.05,
           shadowRadius: 4,
           paddingTop: 8,
+          height: 60 + insets.bottom,
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
         },
         tabBarLabelStyle: {
           fontSize: 12,
