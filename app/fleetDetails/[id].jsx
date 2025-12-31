@@ -204,6 +204,34 @@ const FleetDetailsScreen = () => {
     }
   };
 
+  const handleLeaveFleet = async () => {
+    if (!currentUserMembershipId) return;
+
+    Alert.alert(
+      "Leave Fleet",
+      "Are you sure you want to leave this fleet?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Leave",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteFleetMember(currentUserMembershipId);
+              Alert.alert("Success", "You have left the fleet");
+              router.replace("/(tabs)/fleetManagement");
+            } catch (error) {
+              Alert.alert("Error", error.message);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   useEffect(() => {
     const checkSpeedingSettings = async () => {
       if (members.length > 0 && currentUser && fleet?.id) {
@@ -257,6 +285,11 @@ const FleetDetailsScreen = () => {
     );
   }
 
+  const currentUserMembership = members.find(
+    (m) => m.userId === currentUser?.uid && m.status === "accepted"
+  );
+  const isOwner = currentUserMembership?.roleId === "owner";
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{fleet?.name}</Text>
@@ -301,6 +334,12 @@ const FleetDetailsScreen = () => {
           onPress={() => setAddVehicleModalVisible(true)}
         >
           <Text style={styles.inviteButtonText}>Add new vehicle</Text>
+        </TouchableOpacity>
+      )}
+
+      {!isOwner && currentUserMembership && (
+        <TouchableOpacity style={styles.leaveButton} onPress={handleLeaveFleet}>
+          <Text style={styles.leaveButtonText}>Leave Fleet</Text>
         </TouchableOpacity>
       )}
 
@@ -377,6 +416,21 @@ const styles = StyleSheet.create({
   },
   settingText: {
     fontSize: 16,
+  },
+  leaveButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 20,
+    borderWidth: 1,
+    backgroundColor: "red",
+    borderColor: "#000000",
+    padding: 10,
+    borderRadius: 8,
+  },
+  leaveButtonText: {
+    fontSize: 16,
+    color: "#ffffff",
+    fontWeight: "bold",
   },
 });
 
