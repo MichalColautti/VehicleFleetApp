@@ -1,6 +1,8 @@
+import { Asset } from "expo-asset";
+import * as FileSystem from "expo-file-system/legacy";
 import * as Location from "expo-location";
 import { useEffect, useRef, useState } from "react";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { WebView } from "react-native-webview";
 
 import { getFleetById } from "@/services/fleetService";
@@ -8,8 +10,8 @@ import { getVehicleById } from "@/services/fleetVechicleService";
 import { listenToActiveTrips } from "@/services/locationService";
 import { getUserEmailById } from "@/services/userService";
 
-const PIN_ICON_SOURCE = require("@/assets/images/pin.png");
-const CLOSE_ICON_SOURCE = require("@/assets/images/close.png");
+const PIN_ICON_SOURCE = require("../assets/images/pin.png");
+const CLOSE_ICON_SOURCE = require("../assets/images/close.png");
 
 const PIN_WIDTH = 48;
 const PIN_HEIGHT = 40;
@@ -20,10 +22,28 @@ const FleetMap = ({ mapRef, location, fleetIds }) => {
   const [hasPermission, setHasPermission] = useState(false);
   const [selectedDriver, setSelectedDriver] = useState(null);
   
+  const [pinBase64, setPinBase64] = useState(null);
+  
   const driverDetailsCache = useRef({});
   const webViewRef = useRef(null);
 
-  const pinIconUri = Image.resolveAssetSource(PIN_ICON_SOURCE).uri;
+  // Load and convert pin icon to base64
+  useEffect(() => {
+    (async () => {
+      try {
+        const asset = Asset.fromModule(PIN_ICON_SOURCE);
+        await asset.downloadAsync(); 
+        
+        const base64 = await FileSystem.readAsStringAsync(asset.localUri, {
+          encoding: "base64",
+        });
+        
+        setPinBase64(`data:image/png;base64,${base64}`);
+      } catch (e) {
+        console.error("Error loading pin icon:", e);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -105,7 +125,7 @@ const FleetMap = ({ mapRef, location, fleetIds }) => {
   }, [activeTrips]);
 
   useEffect(() => {
-    if (drivers.length > 0 && webViewRef.current) {
+    if (drivers.length > 0 && webViewRef.current && pinBase64) {
       const markersData = drivers
         .filter((d) => d.lastLat && d.lastLon)
         .map((d) => ({
@@ -121,7 +141,15 @@ const FleetMap = ({ mapRef, location, fleetIds }) => {
       `;
       webViewRef.current.injectJavaScript(script);
     }
-  }, [drivers]);
+  }, [drivers, pinBase64]);
+
+  if (!pinBase64) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#000" />
+      </View>
+    );
+  }
 
   const leafletHtml = `
     <!DOCTYPE html>
@@ -138,6 +166,13 @@ const FleetMap = ({ mapRef, location, fleetIds }) => {
     <body>
       <div id="map"></div>
       <script>
+        delete L.Icon.Default.prototype._getIconUrl;
+        L.Icon.Default.mergeOptions({
+          iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+          iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+          shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+        });
+
         var map = L.map('map', { zoomControl: false }).setView([${location?.coords.latitude || 52.237}, ${location?.coords.longitude || 21.017}], 13);
         
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -145,7 +180,7 @@ const FleetMap = ({ mapRef, location, fleetIds }) => {
         }).addTo(map);
 
         var pinIcon = L.icon({
-          iconUrl: '${pinIconUri}',
+          iconUrl: '${pinBase64}',
           iconSize: [${PIN_WIDTH}, ${PIN_HEIGHT}],
           iconAnchor: [${PIN_WIDTH / 2}, ${PIN_HEIGHT}], 
           popupAnchor: [0, -${PIN_HEIGHT}]
@@ -223,7 +258,8 @@ const FleetMap = ({ mapRef, location, fleetIds }) => {
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: "#fff" 
+    backgroundColor: "#fff",
+    justifyContent: 'center',
   },
   map: { 
     flex: 1,
@@ -235,7 +271,7 @@ const styles = StyleSheet.create({
     right: 20,
     backgroundColor: "white", 
     borderRadius: 20, 
-    padding: 15,
+    padding: 20,
     paddingRight: 40, 
     flexDirection: "row", 
     justifyContent: "space-between", 

@@ -1,8 +1,10 @@
 import { subscribeToActiveTripLocation } from "@/services/locationService";
 import { getUserEmailById } from "@/services/userService";
+import { Asset } from "expo-asset";
+import * as FileSystem from "expo-file-system/legacy";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { WebView } from "react-native-webview";
 
 const PIN_ICON_SOURCE = require("@/assets/images/pin.png");
@@ -17,9 +19,25 @@ const DriverLocationScreen = () => {
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isMapReady, setIsMapReady] = useState(false);
+  
+  const [pinBase64, setPinBase64] = useState(null);
+  
   const webViewRef = useRef(null);
 
-  const pinIconUri = Image.resolveAssetSource(PIN_ICON_SOURCE).uri;
+  useEffect(() => {
+    (async () => {
+      try {
+        const asset = Asset.fromModule(PIN_ICON_SOURCE);
+        await asset.downloadAsync();
+        const base64 = await FileSystem.readAsStringAsync(asset.localUri, {
+          encoding: "base64",
+        });
+        setPinBase64(`data:image/png;base64,${base64}`);
+      } catch (e) {
+        console.error("Error loading pin icon:", e);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     const fetchEmail = async () => {
@@ -69,6 +87,15 @@ const DriverLocationScreen = () => {
     }
   }, [location, isMapReady, driverEmail]);
 
+  if (!pinBase64) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" />
+        <Text>Loading map assets...</Text>
+      </View>
+    );
+  }
+
   const leafletHtml = `
     <!DOCTYPE html>
     <html>
@@ -91,7 +118,7 @@ const DriverLocationScreen = () => {
         }).addTo(map);
 
         var pinIcon = L.icon({
-          iconUrl: '${pinIconUri}',
+          iconUrl: '${pinBase64}',
           iconSize: [${PIN_WIDTH}, ${PIN_HEIGHT}],
           iconAnchor: [${PIN_WIDTH / 2}, ${PIN_HEIGHT}], 
           popupAnchor: [0, -${PIN_HEIGHT}]
@@ -192,7 +219,7 @@ const styles = StyleSheet.create({
   },
   overlayText: {
     fontSize: 14
-    }
+  }
 });
 
 export default DriverLocationScreen;
