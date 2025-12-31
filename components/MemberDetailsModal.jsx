@@ -94,7 +94,7 @@ const MemberDetailsModal = ({
           hasUpdatePermission,
         ] = await Promise.all([
           hasPermissions(currentUser.uid, fleet.id, "delete_member"),
-          hasPermissions(currentUser.uid, fleet.id, "view_driver_position"),
+          hasPermissions(currentUser.uid, fleet.id, "view_drivers_position"),
           hasPermissions(currentUser.uid, fleet.id, "view_trip_history"),
           hasPermissions(currentUser.uid, fleet.id, "update_member"),
         ]);

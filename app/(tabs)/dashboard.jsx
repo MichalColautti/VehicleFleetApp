@@ -21,7 +21,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import NetInfo, { useNetInfo } from "@react-native-community/netinfo";
 import * as Location from "expo-location";
 import * as TaskManager from "expo-task-manager";
-import { getAuth } from "firebase/auth";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -33,6 +32,7 @@ import {
 } from "react-native";
 import DropDownPicker from "react-native-dropdown-picker";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { auth } from "../../config/firebaseConfig";
 
 const LOCATION_TASK_NAME = "background-location-task";
 let lastNotificationTime = 0;
@@ -98,7 +98,6 @@ const DashboardScreen = () => {
 
   const currentTripId = useRef(null);
 
-  const auth = getAuth();
   const user = auth.currentUser;
   const netInfo = useNetInfo();
 
@@ -147,20 +146,28 @@ const DashboardScreen = () => {
           userEmail: user.email
         }));
 
-        const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
-        if (!hasStarted) {
-          await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
-            accuracy: Location.Accuracy.High,
-            timeInterval: 10000,
-            distanceInterval: 10,
-            showsBackgroundLocationIndicator: true,
-            pausesUpdatesAutomatically: false,
-            activityType: Location.ActivityType.AutomotiveNavigation,
-            foregroundService: {
-              notificationTitle: "Vehicle Fleet",
-              notificationBody: "Recording your trip in background...",
-            },
-          });
+        try {
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          if (status === "granted") {
+            await Location.requestBackgroundPermissionsAsync();
+            const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
+            if (!hasStarted) {
+              await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
+                accuracy: Location.Accuracy.High,
+                timeInterval: 10000,
+                distanceInterval: 10,
+                showsBackgroundLocationIndicator: true,
+                pausesUpdatesAutomatically: false,
+                activityType: Location.ActivityType.AutomotiveNavigation,
+                foregroundService: {
+                  notificationTitle: "Vehicle Fleet",
+                  notificationBody: "Recording your trip in background...",
+                },
+              });
+            }
+          }
+        } catch (error) {
+          console.error("Error resuming location updates:", error);
         }
       }
     };

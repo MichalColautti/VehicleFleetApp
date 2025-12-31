@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from "expo-router";
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import MapView, { Marker, Polyline } from "react-native-maps";
+import { WebView } from "react-native-webview";
 
 const fixPath = (points, epsilon) => {
   if (points.length < 3) return points;
@@ -20,11 +20,9 @@ const fixPath = (points, epsilon) => {
 
 const TripHistoryMapScreen = () => {
   const { tripData } = useLocalSearchParams();
-  const mapRef = useRef(null);
 
   const trip = useMemo(() => {
     try {
-      console.log("Parsing trip data:", tripData);
       return JSON.parse(tripData);
     } catch (e) {
       return null;
@@ -34,10 +32,7 @@ const TripHistoryMapScreen = () => {
   const coordinates = useMemo(() => {
     if (!trip || !trip.points || trip.points.length === 0) return [];
     const fixedPoints = fixPath(trip.points, 0.00005);
-    return fixedPoints.map((p) => ({
-      latitude: p.lat,
-      longitude: p.lon,
-    }));
+    return fixedPoints.map((p) => [p.lat, p.lon]);
   }, [trip]);
 
   if (coordinates.length === 0) {
@@ -48,46 +43,77 @@ const TripHistoryMapScreen = () => {
     );
   }
 
-  const startPoint = coordinates[0];
-  const endPoint = coordinates[coordinates.length - 1];
+  const leafletHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+      <style>
+        body { margin: 0; padding: 0; }
+        #map { height: 100vh; width: 100vw; }
+      </style>
+    </head>
+    <body>
+      <div id="map"></div>
+      <script>
+        var map = L.map('map');
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
 
-  const onMapReady = () => {
-    if (mapRef.current) {
-      mapRef.current.fitToCoordinates(coordinates, {
-        edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
-        animated: true,
-      });
-    }
-  };
+        var pathData = ${JSON.stringify(coordinates)};
+        var isActive = ${trip.active ? 'true' : 'false'};
+
+        if (pathData.length > 0) {
+          var polyline = L.polyline(pathData, {
+            color: '#007bff',
+            weight: 4
+          }).addTo(map);
+
+          map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+
+          L.circleMarker(pathData[0], {
+            color: 'green',
+            fillColor: 'green',
+            fillOpacity: 1,
+            radius: 8
+          }).addTo(map).bindPopup("Start");
+
+          if (!isActive) {
+            L.circleMarker(pathData[pathData.length - 1], {
+              color: 'red',
+              fillColor: 'red',
+              fillOpacity: 1,
+              radius: 8
+            }).addTo(map).bindPopup("End");
+          }
+        } else {
+          map.setView([52.237049, 21.017532], 13);
+        }
+      </script>
+    </body>
+    </html>
+  `;
 
   return (
-    <MapView
-      ref={mapRef}
-      style={styles.map}
-      onMapReady={onMapReady}
-      initialRegion={{
-        latitude: startPoint.latitude,
-        longitude: startPoint.longitude,
-        latitudeDelta: 0.0922,
-        longitudeDelta: 0.0421,
-      }}
-    >
-      <Polyline
-        coordinates={coordinates}
-        strokeColor="#007bff"
-        strokeWidth={4}
+    <View style={styles.mapContainer}>
+      <WebView
+        originWhitelist={['*']}
+        source={{ html: leafletHtml }}
+        style={styles.map}
       />
-
-      <Marker key="start" coordinate={startPoint} title="Start" pinColor="green" />
-
-      {!trip.active && (
-        <Marker key="end" coordinate={endPoint} title="End" pinColor="red" />
-      )}
-    </MapView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  mapContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
   map: {
     flex: 1,
   },

@@ -2,50 +2,138 @@ import { subscribeToActiveTripLocation } from "@/services/locationService";
 import { getUserEmailById } from "@/services/userService";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
-import MapView, { Marker } from "react-native-maps";
+import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
+import { WebView } from "react-native-webview";
+
+const PIN_ICON_SOURCE = require("@/assets/images/pin.png");
+
+const PIN_WIDTH = 48;
+const PIN_HEIGHT = 40;
 
 const DriverLocationScreen = () => {
   const { userId, fleetId } = useLocalSearchParams();
   const [location, setLocation] = useState(null);
+  const [driverEmail, setDriverEmail] = useState("");
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const mapRef = useRef(null);
+  const [isMapReady, setIsMapReady] = useState(false);
+  const webViewRef = useRef(null);
+
+  const pinIconUri = Image.resolveAssetSource(PIN_ICON_SOURCE).uri;
 
   useEffect(() => {
-    if (!userId) {
-      setError("Driver ID is missing."); 
-      setIsLoading(false);
-      return;
-    }
-    if (!fleetId) {
-      setError("Fleet ID is missing."); 
+    const fetchEmail = async () => {
+      if (userId) {
+        try {
+          const email = await getUserEmailById(userId);
+          setDriverEmail(email || "Unknown Driver");
+        } catch (e) {
+          console.log(e);
+        }
+      }
+    };
+    fetchEmail();
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId || !fleetId) {
+      setError("Driver ID is missing.");
       setIsLoading(false);
       return;
     }
 
     const unsubscribe = subscribeToActiveTripLocation(userId, fleetId, (newLocation) => {
+      setIsLoading(false);
       if (newLocation) {
         setLocation(newLocation);
-        if (mapRef.current) {
-          mapRef.current.animateToRegion(
-            {
-              latitude: newLocation.latitude,
-              longitude: newLocation.longitude,
-              latitudeDelta: 0.01,
-              longitudeDelta: 0.01,
-            },
-            3000
-          );
-        }
-      } else {
-        setError("Driver doesn't have an active trip or location.");
       }
-      setIsLoading(false);
     });
 
     return () => unsubscribe();
   }, [userId, fleetId]);
+
+  useEffect(() => {
+    if (location && isMapReady && webViewRef.current) {
+      const timestamp = location.timestamp?.toDate 
+        ? location.timestamp.toDate().toLocaleTimeString() 
+        : new Date().toLocaleTimeString();
+
+      const payload = {
+        lat: location.latitude,
+        lng: location.longitude,
+        email: driverEmail,
+        timestamp: timestamp
+      };
+      
+      webViewRef.current.postMessage(JSON.stringify(payload));
+    }
+  }, [location, isMapReady, driverEmail]);
+
+  const leafletHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+      <style>
+        body { margin: 0; padding: 0; }
+        #map { height: 100vh; width: 100vw; }
+      </style>
+    </head>
+    <body>
+      <div id="map"></div>
+      <script>
+        var map = L.map('map').setView([0, 0], 2);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        var pinIcon = L.icon({
+          iconUrl: '${pinIconUri}',
+          iconSize: [${PIN_WIDTH}, ${PIN_HEIGHT}],
+          iconAnchor: [${PIN_WIDTH / 2}, ${PIN_HEIGHT}], 
+          popupAnchor: [0, -${PIN_HEIGHT}]
+        });
+
+        var marker = null;
+        var isFirstUpdate = true;
+
+        document.addEventListener("message", function(event) {
+          handleUpdate(event.data);
+        });
+        window.addEventListener("message", function(event) {
+          handleUpdate(event.data);
+        });
+
+        function handleUpdate(dataString) {
+          try {
+            var data = JSON.parse(dataString);
+            var lat = data.lat;
+            var lng = data.lng;
+            var popupContent = data.email + "<br>Update: " + data.timestamp;
+
+            if (!marker) {
+              marker = L.marker([lat, lng], {icon: pinIcon}).addTo(map);
+              marker.bindPopup(popupContent).openPopup();
+            } else {
+              marker.setLatLng([lat, lng]);
+              marker.setPopupContent(popupContent);
+            }
+
+            if (isFirstUpdate) {
+              map.setView([lat, lng], 15);
+              isFirstUpdate = false;
+            } else {
+              map.panTo([lat, lng]);
+            }
+          } catch(e) {}
+        }
+      </script>
+    </body>
+    </html>
+  `;
 
   if (isLoading) {
     return (
@@ -56,40 +144,26 @@ const DriverLocationScreen = () => {
     );
   }
 
-  if (error && !location) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.errorText}>{error}</Text>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
-      {location ? (
-        <MapView
-          ref={mapRef}
-          style={styles.map}
-          initialRegion={{
-            latitude: location.latitude,
-            longitude: location.longitude,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          }}
-        >
-          <Marker
-            coordinate={{
-              latitude: location.latitude,
-              longitude: location.longitude,
-            }}
-            title={getUserEmailById(userId)}
-            description={`Last update: ${new Date(
-              location.timestamp?.toDate()
-            ).toLocaleTimeString()}`}
-          />
-        </MapView>
-      ) : (
-        <Text>Waiting for driver location...</Text>
+      <WebView
+        ref={webViewRef}
+        originWhitelist={['*']}
+        source={{ html: leafletHtml }}
+        style={styles.map}
+        onLoadEnd={() => setIsMapReady(true)}
+      />
+      
+      {!location && !error && (
+        <View style={styles.overlay}>
+          <Text style={styles.overlayText}>Loading</Text>
+        </View>
+      )}
+
+      {error && (
+         <View style={styles.overlay}>
+          <Text style={{color: 'red'}}>{error}</Text>
+        </View>
       )}
     </View>
   );
@@ -98,16 +172,27 @@ const DriverLocationScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: '#fff',
   },
   map: {
-    ...StyleSheet.absoluteFillObject,
+    flex: 1,
   },
-  errorText: {
-    color: "red",
-    fontSize: 16,
+  overlay: {
+    position: 'absolute',
+    bottom: 50,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    padding: 8,
+    borderRadius: 8,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
+  overlayText: {
+    fontSize: 14
+    }
 });
 
 export default DriverLocationScreen;
