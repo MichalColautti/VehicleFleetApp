@@ -1,5 +1,6 @@
 import DeleteIcon from "@/assets/icons/delete.svg";
 import FleetItem from "@/components/FleetItem";
+import { appEvents } from "@/events/appEvents";
 import { getFleetMembersIncludingPending } from "@/services/fleetMembershipService";
 import {
   createFleet,
@@ -40,6 +41,12 @@ const FleetManagementScreen = () => {
     if (currentUser) {
       fetchFleets();
     }
+
+    appEvents.on("fleetAccepted", fetchFleets);
+
+    return () => {
+      appEvents.off("fleetAccepted", fetchFleets);
+    };
   }, [currentUser]);
 
   const fetchFleets = async () => {
