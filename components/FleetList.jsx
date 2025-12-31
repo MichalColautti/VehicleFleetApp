@@ -9,7 +9,6 @@ const FleetList = ({
   handleDeleteFleet,
   refreshing,
   handleRefresh,
-  maxFleets = 3,
 }) => {
   const renderHiddenItem = handleDeleteFleet
     ? ({ item }) => (
@@ -25,7 +24,8 @@ const FleetList = ({
     : undefined;
   return (
     <SwipeListView
-      style={[styles.container, { maxHeight: maxFleets * 79 }]}
+      style={styles.container}
+      contentContainerStyle={styles.contentContainer}
       data={fleets}
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => (
@@ -40,12 +40,17 @@ const FleetList = ({
       }
       refreshing={refreshing}
       onRefresh={handleRefresh}
+      scrollEnabled={fleets.length > 0}
     />
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    flexGrow: 0,
+  },
+  contentContainer: {
+    paddingBottom: 20, 
   },
   noFleetsText: {
     textAlign: "center",
@@ -58,17 +63,18 @@ const styles = StyleSheet.create({
     backgroundColor: "#fafafa",
     flexDirection: "row",
     justifyContent: "flex-end",
+    paddingLeft: 15,
   },
   deleteButton: {
     backgroundColor: "red",
     width: 70,
-    height: 80,
+    height: "100%",
     justifyContent: "center",
     alignItems: "center",
-  },
-  deleteButtonText: {
-    color: "#fff",
-    fontSize: 16,
+    position: "absolute",
+    right: 0,
+    top: 0,
+    bottom: 0,
   },
 });
 

@@ -21,14 +21,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: "#ddd",
     backgroundColor: "#fff",
+    justifyContent: "center",
   },
   fleetName: {
     fontSize: 18,
     fontWeight: "bold",
+    color: "#000",
   },
   memberCount: {
     fontSize: 14,
     color: "#aaaaaa",
+    marginTop: 4,
   },
 });
 
