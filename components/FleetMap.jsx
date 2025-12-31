@@ -17,7 +17,7 @@ const PIN_WIDTH = 48;
 const PIN_HEIGHT = 40;
 
 const FleetMap = ({ mapRef, location, fleetIds }) => {
-  const [activeTrips, setActiveTrips] = useState({});
+  const [activeTripsByFleet, setActiveTripsByFleet] = useState({});
   const [drivers, setDrivers] = useState([]);
   const [hasPermission, setHasPermission] = useState(false);
   const [selectedDriver, setSelectedDriver] = useState(null);
@@ -61,10 +61,9 @@ const FleetMap = ({ mapRef, location, fleetIds }) => {
     let unsubscribers = [];
     fleetIds.forEach((fleetId) => {
       const unsub = listenToActiveTrips(fleetId, (fleetTrips) => {
-        if (!fleetTrips) return;
-        setActiveTrips((prevTrips) => ({
-          ...prevTrips,
-          ...Object.fromEntries(fleetTrips.map((trip) => [trip.tripId, trip])),
+        setActiveTripsByFleet((prev) => ({
+          ...prev,
+          [fleetId]: fleetTrips || [] 
         }));
       });
       unsubscribers.push(unsub);
@@ -75,13 +74,15 @@ const FleetMap = ({ mapRef, location, fleetIds }) => {
   useEffect(() => {
     const fetchTripDetails = async () => {
       try {
-        const tripsArray = Object.values(activeTrips);
-        if (tripsArray.length === 0) {
+        const allTrips = Object.values(activeTripsByFleet).flat();
+
+        if (allTrips.length === 0) {
           setDrivers([]);
           return;
         }
+
         const newDrivers = await Promise.all(
-          tripsArray.map(async (trip) => {
+          allTrips.map(async (trip) => {
             if (driverDetailsCache.current[trip.tripId]) {
               const lastPoint = trip.points?.[trip.points.length - 1];
               const updatedDriver = {
@@ -122,10 +123,10 @@ const FleetMap = ({ mapRef, location, fleetIds }) => {
       }
     };
     fetchTripDetails();
-  }, [activeTrips]);
+  }, [activeTripsByFleet]);
 
   useEffect(() => {
-    if (drivers.length > 0 && webViewRef.current && pinBase64) {
+    if (webViewRef.current && pinBase64) {
       const markersData = drivers
         .filter((d) => d.lastLat && d.lastLon)
         .map((d) => ({
@@ -190,6 +191,7 @@ const FleetMap = ({ mapRef, location, fleetIds }) => {
 
         window.updateMarkers = function(data) {
           var currentIds = new Set();
+          
           data.forEach(function(item) {
             currentIds.add(item.id);
             if (markers[item.id]) {
@@ -206,6 +208,7 @@ const FleetMap = ({ mapRef, location, fleetIds }) => {
               markers[item.id] = m;
             }
           });
+
           Object.keys(markers).forEach(function(id) {
             if (!currentIds.has(id)) {
               map.removeLayer(markers[id]);
