@@ -41,7 +41,7 @@ const NotificationsButton = () => {
         style={styles.notificationsIcon}
         onPress={() => setVisible(true)}
       >
-        <NitificationsIcon width={24} height={24} fill={"#fff"} />
+        <NitificationsIcon width={24} height={24} color="#fff" />
         {count > 0 && (
           <View style={styles.numberOfNotifications}>
             <Text style={styles.numberOfNotificationsText}>{count}</Text>

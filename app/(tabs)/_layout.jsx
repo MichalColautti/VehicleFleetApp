@@ -1,13 +1,14 @@
 import DashboardIcon from "@/assets/icons/dashboard.svg";
 import FleetIcon from "@/assets/icons/fleet.svg";
 import MapIcon from "@/assets/icons/map.svg";
+import ProfileIcon from "@/assets/icons/profile.svg";
 import NotificationsButton from "@/components/NotificationsButton";
 import usePushNotifications from "@/hooks/usePushNotifications";
 import { saveExpoPushToken } from "@/services/userService";
 import { Tabs, useRouter } from "expo-router";
-import { getAuth, signOut } from "firebase/auth";
+import { getAuth } from "firebase/auth";
 import { useEffect } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const MainLayout = () => {
@@ -15,11 +16,6 @@ const MainLayout = () => {
   const user = auth.currentUser;
   const router = useRouter();
   const { expoPushToken } = usePushNotifications();
-
-  const handleLogout = async () => {
-    await signOut(auth);
-    router.replace("/");
-  };
 
   useEffect(() => {
     if (user && expoPushToken) {
@@ -56,8 +52,8 @@ const MainLayout = () => {
           marginBottom: 0,
         },
         headerRight: () => (
-          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-            <Text style={styles.logoutButtonText}>Logout</Text>
+          <TouchableOpacity onPress={() => router.push("/profile/profile")} style={styles.profileButton}>
+            <ProfileIcon width={24} height={24} color="#fff" />
           </TouchableOpacity>
         ),
         headerLeft: () => (
@@ -116,17 +112,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  logoutButton: {
-    marginRight: 15,
-    backgroundColor: '#303638',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-  },
-  logoutButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "500",
+  profileButton: {
+    marginRight: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 
