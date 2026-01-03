@@ -31,6 +31,7 @@ const MemberDetailsModal = ({
   const [canViewHistory, setCanViewHistory] = useState(false);
   const [canUpdateRole, setCanUpdateRole] = useState(false);
   const [isEditingRole, setIsEditingRole] = useState(false);
+  const [canRecordPosition, setCanRecordPosition] = useState(false);
   const [allRoles, setAllRoles] = useState([]);
   const [currentRoleId, setCurrentRoleId] = useState(null);
 
@@ -92,17 +93,20 @@ const MemberDetailsModal = ({
           hasViewPositionPermission,
           hasViewHistoryPermission,
           hasUpdatePermission,
+          memberHasRecordPermission,
         ] = await Promise.all([
           hasPermissions(currentUser.uid, fleet.id, "delete_member"),
           hasPermissions(currentUser.uid, fleet.id, "view_drivers_position"),
           hasPermissions(currentUser.uid, fleet.id, "view_trip_history"),
           hasPermissions(currentUser.uid, fleet.id, "update_member"),
+          hasPermissions(selectedMember.userId, fleet.id, "record_position"),
         ]);
 
         setCanDeleteMember(hasDeletePermission);
         setCanViewPosition(hasViewPositionPermission);
         setCanViewHistory(hasViewHistoryPermission);
         setCanUpdateRole(hasUpdatePermission);
+        setCanRecordPosition(memberHasRecordPermission);
       }
       setIsCheckingPermission(false);
     };
@@ -200,7 +204,7 @@ const MemberDetailsModal = ({
 
           {selectedMember && selectedMember.status === "accepted" && !isEditingRole && (
             <>
-              {canViewHistory && (
+              {canViewHistory && canRecordPosition && (
                 <TouchableOpacity
                   style={styles.actionButton}
                   onPress={handleShowHistory}
