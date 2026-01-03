@@ -1,18 +1,17 @@
 import { useState } from "react";
 import {
-    Modal,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Modal,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 const AddVehicleModal = ({
   vehicleModalVisible,
   setVehicleModalVisible,
   handleAddVehicle,
-  fleetId,
 }) => {
   const [vehicleData, setVehicleData] = useState({
     name: "",
@@ -28,7 +27,7 @@ const AddVehicleModal = ({
     }
 
     setError("");
-    handleAddVehicle(fleetId, vehicleData);
+    handleAddVehicle(vehicleData);
     setVehicleData({ name: "", registrationNumber: "" });
     setVehicleModalVisible(false);
   };

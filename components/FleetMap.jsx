@@ -8,7 +8,10 @@ import { WebView } from "react-native-webview";
 import { getFleetById } from "@/services/fleetService";
 import { getVehicleById } from "@/services/fleetVechicleService";
 import { listenToActiveTrips } from "@/services/locationService";
+import { checkUserSubscriptionStatus } from "@/services/subscriptionService";
 import { getUserEmailById } from "@/services/userService";
+import { useRouter } from "expo-router";
+import { getAuth } from "firebase/auth";
 
 const PIN_ICON_SOURCE = require("../assets/images/pin.png");
 const CLOSE_ICON_SOURCE = require("../assets/images/close.png");
@@ -17,10 +20,16 @@ const PIN_WIDTH = 48;
 const PIN_HEIGHT = 40;
 
 const FleetMap = ({ mapRef, location, fleetIds }) => {
+  const router = useRouter();
+  const auth = getAuth();
+
   const [activeTripsByFleet, setActiveTripsByFleet] = useState({});
   const [drivers, setDrivers] = useState([]);
   const [hasPermission, setHasPermission] = useState(false);
   const [selectedDriver, setSelectedDriver] = useState(null);
+
+  const [subStatus, setSubStatus] = useState({ limit: 1, isExpired: false, isValid: true });
+  const [isSubLoading, setIsSubLoading] = useState(true);
   
   const [pinBase64, setPinBase64] = useState(null);
   
@@ -144,11 +153,81 @@ const FleetMap = ({ mapRef, location, fleetIds }) => {
     }
   }, [drivers, pinBase64]);
 
+  useEffect(() => {
+    const checkSub = async () => {
+      if (auth.currentUser) {
+        const status = await checkUserSubscriptionStatus(auth.currentUser.uid);
+        setSubStatus(status); 
+      }
+      setIsSubLoading(false);
+    };
+    checkSub();
+  }, [drivers.length]);
+
+  const totalDriversCount = drivers.length;
+  //console.log(`Drivers: ${totalDriversCount}, Limit: ${subStatus.limit}, Is limit exceeded: ${totalDriversCount > subStatus.limit}`);
+  const isLimitExceeded = totalDriversCount > subStatus.limit;
+
+  useEffect(() => {
+    if (isLimitExceeded) {
+        if (webViewRef.current) {
+            // Clear markers
+            webViewRef.current.injectJavaScript(`if(window.updateMarkers) { window.updateMarkers([]); }`);
+        }
+        return;
+    }
+
+    if (webViewRef.current && pinBase64) {
+      const markersData = drivers
+        .filter((d) => d.lastLat && d.lastLon)
+        .map((d) => ({
+          id: d.tripId || `${d.fleetId}-${d.userId}`,
+          lat: d.lastLat,
+          lng: d.lastLon,
+        }));
+
+      const script = `
+        if (window.updateMarkers) {
+          window.updateMarkers(${JSON.stringify(markersData)});
+        }
+      `;
+      webViewRef.current.injectJavaScript(script);
+    }
+  }, [drivers, pinBase64, isLimitExceeded]);
+
   if (!pinBase64) {
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" color="#000" />
       </View>
+    );
+  }
+
+  if (isLimitExceeded) {
+    return (
+        <View style={styles.container}>
+            <View style={styles.lockOverlay}>
+                <Text style={styles.lockTitle}>Too much drivers for current plan</Text>
+                <Text style={styles.lockText}>
+                   You have {totalDriversCount} active drivers, but your current plan limit is {subStatus.limit}.
+                </Text>
+                {subStatus.isExpired && (
+                    <Text style={styles.lockReason}>
+                        (Your subscription has expired and has been reverted to Basic)
+                    </Text>
+                )}
+                <Text style={styles.lockInstruction}>
+                    Please remove {totalDriversCount - subStatus.limit} drivers to see remaining drivers on map or renew your subscription to view the map.
+                </Text>
+
+                <TouchableOpacity 
+                    style={styles.renewButton}
+                    onPress={() => router.push("/profile")}
+                >
+                    <Text style={styles.renewButtonText}>Renew / Upgrade Plan</Text>
+                </TouchableOpacity>
+            </View>
+        </View>
     );
   }
 
@@ -174,8 +253,8 @@ const FleetMap = ({ mapRef, location, fleetIds }) => {
           shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
         });
 
-        var map = L.map('map', { zoomControl: false }).setView([${location?.coords.latitude || 52.237}, ${location?.coords.longitude || 21.017}], 13);
-        
+        var map = L.map('map', { zoomControl: false }).setView([52.237, 21.017], 13);
+
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           attribution: '&copy; OpenStreetMap'
         }).addTo(map);
@@ -188,9 +267,11 @@ const FleetMap = ({ mapRef, location, fleetIds }) => {
         });
 
         var markers = {};
+        var featureGroup = L.featureGroup().addTo(map);
 
         window.updateMarkers = function(data) {
           var currentIds = new Set();
+          var boundsChanged = false;
           
           data.forEach(function(item) {
             currentIds.add(item.id);
@@ -205,7 +286,9 @@ const FleetMap = ({ mapRef, location, fleetIds }) => {
                   id: item.id
                 }));
               });
+              m.addTo(featureGroup);
               markers[item.id] = m;
+              boundsChanged = true;
             }
           });
 
@@ -215,6 +298,10 @@ const FleetMap = ({ mapRef, location, fleetIds }) => {
               delete markers[id];
             }
           });
+
+          if (featureGroup.getLayers().length > 0) {
+             map.fitBounds(featureGroup.getBounds(), { padding: [50, 50] });
+          }
         }
       </script>
     </body>
@@ -304,6 +391,49 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     resizeMode: "contain",
+  },
+  lockOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#f8f9fa',
+  },
+  lockTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#dc3545',
+    marginBottom: 10,
+  },
+  lockText: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 5,
+    color: '#333',
+  },
+  lockReason: {
+    fontSize: 14,
+    textAlign: 'center',
+    color: '#dc3545',
+    marginBottom: 15,
+    fontStyle: 'italic',
+  },
+  lockInstruction: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 30,
+    fontWeight: '600',
+  },
+  renewButton: {
+    backgroundColor: '#007bff',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  renewButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

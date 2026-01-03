@@ -50,6 +50,7 @@ const FleetManagementScreen = () => {
   }, [currentUser]);
 
   const fetchFleets = async () => {
+    if (!currentUser) return;
     setLoading(true);
     try {
       const owned = await getOwnedFleets(currentUser.uid);

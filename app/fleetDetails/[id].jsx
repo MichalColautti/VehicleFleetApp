@@ -16,6 +16,7 @@ import {
   getFleetVehicles,
 } from "@/services/fleetVechicleService";
 import { hasPermissions } from "@/services/roleService";
+import { checkUserSubscriptionStatus } from "@/services/subscriptionService";
 import { getUserIdByEmail } from "@/services/userService";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { getAuth } from "firebase/auth";
@@ -52,35 +53,61 @@ const FleetDetailsScreen = () => {
 
   const [canInviteMember, setCanInviteMember] = useState(false);
   const [isCheckingInviteMemberPermission, setIsCheckingInviteMemberPermission] = useState(true);
+  const [isCheckingSpeedingPermission, setIsCheckingSpeedingPermission] = useState(true);
 
   const [notifySpeeding, setNotifySpeeding] = useState(true);
   const [canReceiveSpeedingAlerts, setCanReceiveSpeedingAlerts] = useState(false);
   const [currentUserMembershipId, setCurrentUserMembershipId] = useState(null);
 
+  const [subStatus, setSubStatus] = useState({ 
+    isValid: true, 
+    isExpired: false, 
+    daysLeft: 30, 
+    limit: 3, 
+    planId: 'basic',
+    originalPlanId: 'basic'
+  });
+
   const fetchFleetData = async () => {
+    if (!id) return;
     try {
       setLoading(true);
-      const fleetData = await getFleetById(id);
-      const membersData = await getFleetMembersIncludingPending(id);
-      const vehiclesData = await getFleetVehicles(id);
+
+      const [fleetData, membersData, vehiclesData] = await Promise.all([
+        getFleetById(id),
+        getFleetMembersIncludingPending(id),
+        getFleetVehicles(id),
+      ]);
 
       setFleet(fleetData || {});
       setMembers(membersData || []);
       setVehicles(vehiclesData || []);
+
+      const ownerMember = membersData?.find(m => m.roleId === 'owner');
+
+      if (ownerMember) {
+        const status = await checkUserSubscriptionStatus(ownerMember.userId);
+        setSubStatus(status);
+      } else {
+        if (currentUser) {
+            const status = await checkUserSubscriptionStatus(currentUser.uid);
+            setSubStatus(status);
+        }
+      }
+
     } catch (error) {
       console.error("Error loading fleet details:", error);
+      Alert.alert("Error", "Failed to load fleet details");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (id) {
-      fetchFleetData();
-    }
+    fetchFleetData();
 
     const subscription = AppState.addEventListener("change", (nextAppState) => {
-      if (nextAppState === "active" && id) {
+      if (nextAppState === "active") {
         fetchFleetData();
       }
     });
@@ -102,6 +129,14 @@ const FleetDetailsScreen = () => {
     }
 
     //console.log("RoleId:", inviteInput.roleId, typeof inviteInput.roleId);
+
+    if (members.length >= subStatus.limit) {
+       Alert.alert(
+         "Limit Reached", 
+         `Your current plan allows for ${subStatus.limit} drivers. Please upgrade your plan to invite more members.`
+       );
+       return;
+    }
 
     try {
       const userId = await getUserIdByEmail(inviteInput.email);
@@ -168,11 +203,12 @@ const FleetDetailsScreen = () => {
     }
   };
 
-  const handleAddVehicle = async (fleetId, vehicleData) => {
+  const handleAddVehicle = async (vehicleData) => {
+    if (!vehicleData) return;
     try {
       //console.log("Adding vehicle:", fleetId, vehicleData);
       await addVehicle(
-        fleetId,
+        id,
         vehicleData.name,
         vehicleData.registrationNumber
       );
@@ -276,6 +312,20 @@ const FleetDetailsScreen = () => {
     };
     checkPermission();
   }, [fleet, currentUser]);
+
+  useEffect(() => {
+  const fetchLimit = async () => {
+    if (fleet?.subscriptionPlan) {
+      const plans = await getSubscriptionPlans();
+      const planDetails = plans.find(p => p.id === fleet.subscriptionPlan);
+
+      if (planDetails?.limitNumber) {
+        setCurrentPlanLimit(planDetails.limitNumber);
+      }
+    }
+  };
+  fetchLimit();
+}, [fleet]);
 
   if (loading || isCheckingAddVehiclePermission || isCheckingInviteMemberPermission) {
     return (
