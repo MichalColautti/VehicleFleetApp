@@ -131,9 +131,12 @@ const FleetDetailsScreen = () => {
     //console.log("RoleId:", inviteInput.roleId, typeof inviteInput.roleId);
 
     if (members.length >= subStatus.limit) {
+       const isCurrentUserOwner = members.find(m => m.userId === currentUser?.uid)?.roleId === 'owner';
        Alert.alert(
          "Limit Reached", 
-         `Your current plan allows for ${subStatus.limit} drivers. Please upgrade your plan to invite more members.`
+         isCurrentUserOwner 
+           ? `Your current plan allows for ${subStatus.limit} drivers. Please upgrade your plan to invite more members.`
+           : `The fleet owner's plan limit (${subStatus.limit} drivers) has been reached. The owner must upgrade to add more members.`
        );
        return;
     }
@@ -312,20 +315,6 @@ const FleetDetailsScreen = () => {
     };
     checkPermission();
   }, [fleet, currentUser]);
-
-  useEffect(() => {
-  const fetchLimit = async () => {
-    if (fleet?.subscriptionPlan) {
-      const plans = await getSubscriptionPlans();
-      const planDetails = plans.find(p => p.id === fleet.subscriptionPlan);
-
-      if (planDetails?.limitNumber) {
-        setCurrentPlanLimit(planDetails.limitNumber);
-      }
-    }
-  };
-  fetchLimit();
-}, [fleet]);
 
   if (loading || isCheckingAddVehiclePermission || isCheckingInviteMemberPermission) {
     return (
