@@ -8,6 +8,7 @@ import {
   endTrip,
   getActiveTripForUser,
   getSpeedLimit,
+  listenToActiveTrips,
   startTrip,
   updateTripLocation
 } from "@/services/locationService";
@@ -95,6 +96,7 @@ const DashboardScreen = () => {
   const [loadingVehicles, setLoadingVehicles] = useState(false);
 
   const [recording, setRecording] = useState(false);
+  const [unavailableVehicleIds, setUnavailableVehicleIds] = useState(new Set());
 
   const currentTripId = useRef(null);
 
@@ -125,6 +127,24 @@ const DashboardScreen = () => {
       appEvents.removeListener("fleetAccepted", fetchFleets);
     };
   }, [user]);
+
+  useEffect(() => {
+    if (!selectedFleet) return;
+
+    const unsubscribe = listenToActiveTrips(selectedFleet, (trips) => {
+      const ids = new Set();
+      if (trips) {
+        trips.forEach((trip) => {
+          if (trip.userId !== user?.uid) {
+            ids.add(trip.vehicleId);
+          }
+        });
+      }
+      setUnavailableVehicleIds(ids);
+    });
+
+    return () => unsubscribe();
+  }, [selectedFleet, user]);
 
   useEffect(() => {
     const checkForActiveTrip = async () => {
@@ -251,6 +271,11 @@ const DashboardScreen = () => {
   const startRecording = async () => {
     if (!selectedFleet || !selectedVehicle) {
       Alert.alert("Select fleet and vehicle first.");
+      return;
+    }
+
+    if (unavailableVehicleIds.has(selectedVehicle)) {
+      Alert.alert("Vehicle Unavailable", "This vehicle is currently in use by another driver.");
       return;
     }
 
@@ -395,8 +420,9 @@ const DashboardScreen = () => {
               open={vehicleOpen}
               value={selectedVehicle}
               items={vehicles.map((vehicle) => ({
-                label: `${vehicle.name} (${vehicle.registrationNumber})`,
+                label: unavailableVehicleIds.has(vehicle.id) ? `${vehicle.name} (In Use)` : `${vehicle.name} (${vehicle.registrationNumber})`,
                 value: vehicle.id,
+                disabled: unavailableVehicleIds.has(vehicle.id),
               }))}
               setOpen={setVehicleOpen}
               setValue={setSelectedVehicle}
