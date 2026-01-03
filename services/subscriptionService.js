@@ -4,6 +4,12 @@ import { getFunctions, httpsCallable } from "firebase/functions";
 const db = getFirestore();
 const functions = getFunctions();
 
+const PLAN_LIMITS_CONFIG = {
+  'basic': 3,
+  'pro': 10,      
+  'enterprise': 9999,
+};
+
 export const getSubscriptionPlans = async () => {
   try {
     const plansRef = collection(db, "subscription_plans");
@@ -74,8 +80,8 @@ export const checkUserSubscriptionStatus = async (userId) => {
     }
 
     const effectiveLimit = isExpired 
-        ? (basicPlanDetails?.driverLimit || 3) 
-        : (currentPlanDetails?.driverLimit || 3);
+        ? (basicPlanDetails?.limitNumber || 3) 
+        : (currentPlanDetails?.limitNumber || 3);
 
     return {
       isValid: !isExpired,
@@ -88,7 +94,6 @@ export const checkUserSubscriptionStatus = async (userId) => {
 
   } catch (error) {
     console.error("Error checking subscription status:", error);
-    return { isValid: true, isExpired: false, limit: 3, planId: 'basic', daysLeft: 0 };
   }
 };
 

@@ -53,7 +53,7 @@ const ProfileScreen = () => {
           getUserSubscription(user.uid),
         ]);
         setPlans(fetchedPlans);
-        setCurrentPlanId(userSubscription);
+        setCurrentPlanId(userSubscription.planId);
       } catch (error) {
         Alert.alert("Error", "Failed to load subscription plans.");
       } finally {

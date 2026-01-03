@@ -19,9 +19,9 @@ import {
 import { hasPermissions } from "@/services/roleService";
 import { checkUserSubscriptionStatus } from "@/services/subscriptionService";
 import { getUserIdByEmail } from "@/services/userService";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { getAuth } from "firebase/auth";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -104,15 +104,18 @@ const FleetDetailsScreen = () => {
     }
   };
 
-  useEffect(() => {
-    fetchFleetData();
+  useFocusEffect(
+    useCallback(() => {
+      fetchFleetData();
+    }, [id])
+  );
 
+  useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextAppState) => {
       if (nextAppState === "active") {
         fetchFleetData();
       }
     });
-
     return () => {
       subscription.remove();
     };
