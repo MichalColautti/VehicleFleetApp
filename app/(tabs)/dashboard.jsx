@@ -328,6 +328,8 @@ const DashboardScreen = () => {
       console.error("Error starting recording:", error);
       Alert.alert("Error", "Could not start recording trip.");
       setRecording(false);
+      currentTripId.current = null;
+      await AsyncStorage.removeItem("current_trip");
     }
   };
 

@@ -28,7 +28,7 @@ const FleetMap = ({ mapRef, location, fleetIds }) => {
   const [hasPermission, setHasPermission] = useState(false);
   const [selectedDriver, setSelectedDriver] = useState(null);
 
-  const [subStatus, setSubStatus] = useState({ limit: 1, isExpired: false, isValid: true });
+  const [subStatus, setSubStatus] = useState({ limit: 3, isExpired: false, isValid: true });
   const [isSubLoading, setIsSubLoading] = useState(true);
   
   const [pinBase64, setPinBase64] = useState(null);
@@ -162,7 +162,7 @@ const FleetMap = ({ mapRef, location, fleetIds }) => {
       setIsSubLoading(false);
     };
     checkSub();
-  }, [drivers.length]);
+  }, []);
 
   const totalDriversCount = drivers.length;
   //console.log(`Drivers: ${totalDriversCount}, Limit: ${subStatus.limit}, Is limit exceeded: ${totalDriversCount > subStatus.limit}`);

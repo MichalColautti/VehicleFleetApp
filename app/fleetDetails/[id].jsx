@@ -2,6 +2,7 @@ import AddVehicleModal from "@/components/AddVehicleModal";
 import InviteNewMemberModal from "@/components/InviteNewMemberModal";
 import MembersList from "@/components/MembersList";
 import VehiclesList from "@/components/VehiclesList";
+import { appEvents } from "@/events/appEvents";
 import {
   deleteFleetMember,
   getFleetMembersIncludingPending,
@@ -43,7 +44,7 @@ const FleetDetailsScreen = () => {
   const [members, setMembers] = useState([]);
   const [vehicles, setVehicles] = useState([]);
 
-  const [inviteInput, setInviteInput] = useState("");
+  const [inviteInput, setInviteInput] = useState({ email: "", roleId: "" });
 
   const [inviteModalVisible, setInviteModalVisible] = useState(false);
   const [addVehicleModalVisible, setAddVehicleModalVisible] = useState(false);
@@ -186,6 +187,7 @@ const FleetDetailsScreen = () => {
               await deleteFleetMember(member.membershipId);
               Alert.alert("Success", "Member removed successfully");
               fetchFleetData();
+              appEvents.emit("fleetAccepted");
             } catch (error) {
               Alert.alert("Error", error.message);
             }
