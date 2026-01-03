@@ -69,6 +69,14 @@ const ProfileScreen = () => {
   const handleUpgrade = async (plan) => {
     if (plan.id === currentPlanId) return;
 
+    const currentPlanIndex = plans.findIndex((p) => p.id === currentPlanId);
+    const newPlanIndex = plans.findIndex((p) => p.id === plan.id);
+
+    if (newPlanIndex < currentPlanIndex) {
+      Alert.alert("Downgrade Unavailable", "Your subscription will auto-downgrade when it's over.");
+      return;
+    }
+
     setProcessing(true);
 
     try {
