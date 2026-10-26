@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "409674983633",
+    "firebase_url": "https://vehiclefleet-9dbea-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "vehiclefleet-9dbea",
+    "storage_bucket": "vehiclefleet-9dbea.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:409674983633:android:0c0aa4f29cd25e593bfdf0",
+        "android_client_info": {
+          "package_name": "com.vehiclefleet.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDsNU00-a6h2jfTeBggTRE_b-UqQM_CFrw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
